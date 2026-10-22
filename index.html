@@ -263,7 +263,7 @@
       </div>
       <h1>Hi, I'm Mohammed.<br>I build the <span class="accent">backend systems</span> that move things.</h1>
       <p class="lede">
-        I've spent <strong>6 years</strong> building backend and serverless systems on AWS. Right now I own the platform behind
+        I've spent <strong><span class="yrs">6</span> years</strong> building backend and serverless systems on AWS. Right now I own the platform behind
         <strong>vehicle deliveries and logistics</strong> at FINN. I also lean heavily on agentic AI, and I do it with a plan and a hard review.
       </p>
       <div class="cta">
@@ -294,7 +294,7 @@
         Outside of work I'm a car nerd and I run on coffee.
       </p>
       <div class="stats">
-        <div class="stat"><b>6 yrs</b><span>building backend &amp; serverless systems</span></div>
+        <div class="stat"><b><span class="yrs">6</span> yrs</b><span>building backend &amp; serverless systems</span></div>
         <div class="stat"><b>−50%</b><span>MTTR on critical incidents at FINN</span></div>
         <div class="stat"><b>7.4×</b><span>system efficiency gain on AWS at Presentail</span></div>
       </div>
@@ -464,7 +464,12 @@
         root.setAttribute('data-theme', next);
         try { localStorage.setItem('theme', next); } catch (e) {}
       });
-      document.getElementById('year').textContent = new Date().getFullYear();
+      var now = new Date();
+      document.getElementById('year').textContent = now.getFullYear();
+
+      // Full years since the first engineering job (August 2020), ticking over each August.
+      var years = now.getFullYear() - 2020 - (now.getMonth() < 7 ? 1 : 0);
+      document.querySelectorAll('.yrs').forEach(function (el) { el.textContent = years; });
     })();
   </script>
 </body>
