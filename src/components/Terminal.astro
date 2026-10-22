@@ -1,0 +1,402 @@
+---
+import { getCollection } from 'astro:content';
+import { EMAIL, GITHUB, LINKEDIN } from '../consts';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+	.map((p) => ({ id: p.id, title: p.data.title, date: p.data.pubDate.toISOString().slice(0, 10) }));
+---
+
+<div class="term-backdrop" data-terminal hidden>
+	<div class="term" role="dialog" aria-modal="true" aria-label="Terminal">
+		<div class="term-bar">
+			<span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+			<span class="mono term-title">mohammed@faour: ~</span>
+			<button class="term-close" type="button" data-term-close aria-label="Close terminal">✕</button>
+		</div>
+		<div class="term-out mono" data-term-out aria-live="polite"></div>
+		<form class="term-line mono" data-term-form autocomplete="off">
+			<label for="term-input" class="prompt">➜ ~</label>
+			<input id="term-input" data-term-input spellcheck="false" autocapitalize="off" aria-label="Command" />
+		</form>
+	</div>
+</div>
+
+<script is:inline type="application/json" data-term-data set:html={JSON.stringify({ posts, EMAIL, GITHUB, LINKEDIN })} />
+
+<script>
+	type Post = { id: string; title: string; date: string };
+	const backdrop = document.querySelector<HTMLElement>('[data-terminal]');
+	const dataEl = document.querySelector('[data-term-data]');
+
+	if (backdrop && dataEl) {
+		const { posts, EMAIL, GITHUB, LINKEDIN } = JSON.parse(dataEl.textContent!) as {
+			posts: Post[];
+			EMAIL: string;
+			GITHUB: string;
+			LINKEDIN: string;
+		};
+		const out = backdrop.querySelector<HTMLElement>('[data-term-out]')!;
+		const form = backdrop.querySelector<HTMLFormElement>('[data-term-form]')!;
+		const input = backdrop.querySelector<HTMLInputElement>('[data-term-input]')!;
+		const history: string[] = [];
+		let hIndex = 0;
+		let lastFocus: HTMLElement | null = null;
+
+		const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+		const print = (html: string, cls = '') => {
+			const div = document.createElement('div');
+			div.className = `line ${cls}`;
+			div.innerHTML = html;
+			out.appendChild(div);
+			out.scrollTop = out.scrollHeight;
+		};
+		const link = (href: string, text: string) =>
+			`<a href="${href}"${href.startsWith('http') ? ' target="_blank" rel="noopener"' : ''}>${text}</a>`;
+		const years = () => {
+			const n = new Date();
+			return n.getFullYear() - 2020 - (n.getMonth() < 7 ? 1 : 0);
+		};
+		const onHome = () => location.pathname === '/' || location.pathname === '/index.html';
+		const goSection = (id: string) => {
+			close();
+			if (onHome()) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+			else location.href = `/#${id}`;
+		};
+
+		const commands: Record<string, { help?: string; run: (args: string[]) => void }> = {
+			help: {
+				help: 'list commands',
+				run: () => {
+					const rows = Object.entries(commands)
+						.filter(([, c]) => c.help)
+						.map(([k, c]) => `<span class="k">${k.padEnd(12, ' ')}</span><span class="dim">${c.help}</span>`);
+					print(rows.join('<br>'));
+					print('<span class="dim">tip: ↑/↓ for history, Tab to autocomplete, Esc to close. There may be secrets.</span>');
+				},
+			},
+			whoami: {
+				help: 'who is this guy',
+				run: () =>
+					print(
+						`<b>Mohammed Faour</b>: Senior Software Engineer at FINN, Munich.<br>${years()} years building backend &amp; serverless systems on AWS. TypeScript, Node.js, Postgres, event-driven everything. I plan, orchestrate and review AI agents; they don't ship anything I haven't read.`,
+					),
+			},
+			experience: {
+				help: 'work history',
+				run: () =>
+					print(
+						[
+							'<span class="k">2022–now </span> Senior Software Engineer · <b>FINN</b> · Munich',
+							'<span class="k">2022     </span> Backend Developer (contract) · <b>JumpCloud</b> · remote',
+							'<span class="k">2022     </span> Backend Developer · <b>JOIN</b> · remote',
+							'<span class="k">2020–2022</span> Software Engineer · <b>Presentail</b> · Beirut',
+							`<span class="dim">→ details: ${link('/#work', 'scroll to work')}</span>`,
+						].join('<br>'),
+					),
+			},
+			skills: {
+				help: 'the toolbox',
+				run: () =>
+					print(
+						'<span class="k">backend </span> TypeScript · Node.js · Python · gRPC · REST<br><span class="k">cloud   </span> AWS Lambda · S3 · DynamoDB · API Gateway · CI/CD<br><span class="k">data    </span> Postgres · MySQL · migrations that don\'t page anyone<br><span class="k">ai      </span> agentic workflows · MCP servers · Claude Code',
+					),
+			},
+			projects: {
+				help: 'side projects',
+				run: () =>
+					print(
+						[
+							`${link(GITHUB + '/hub', 'hub')}               one tray app for mouse, headset &amp; audio`,
+							`${link(GITHUB + '/claude-workstreams', 'claude-workstreams')} durable, git-backed context for Claude Code`,
+							`${link(GITHUB + '/conductor-orchestration', 'conductor')}         an agent that manages my agents`,
+						].join('<br>'),
+					),
+			},
+			blog: {
+				help: 'latest posts',
+				run: () => {
+					if (!posts.length) return print('No posts yet. Soon™.');
+					print(posts.slice(0, 8).map((p) => `<span class="dim">${p.date}</span>  ${link(`/blog/${p.id}/`, esc(p.title))}`).join('<br>'));
+				},
+			},
+			contact: {
+				help: 'ways to reach me',
+				run: () =>
+					print(
+						`email     ${link('mailto:' + EMAIL, EMAIL)}<br>linkedin  ${link(LINKEDIN, 'in/mohammed-faour')}<br>github    ${link(GITHUB, 'mfaour34')}`,
+					),
+			},
+			play: { help: 'start the Dispatch game', run: () => (onHome() ? (close(), window.dispatchEvent(new Event('dispatch:start'))) : (location.href = '/#play')) },
+			hype: {
+				help: 'hype 0–5: set the hype level',
+				run: ([n]) => {
+					const level = Number(n);
+					if (!onHome()) return print('The hype slider lives on the home page. Try <span class="k">cd ~</span>.');
+					if (n === undefined || Number.isNaN(level)) return print('usage: hype &lt;0-5&gt;');
+					print(level >= 5 ? 'MAXIMUM HYPE ENGAGED ⚡' : `hype set to ${level}`);
+					// Close first so the hero is visible (and the level-5 flash can't re-anchor this dialog).
+					close();
+					scrollTo({ top: 0, behavior: 'smooth' });
+					window.dispatchEvent(new CustomEvent('hype:set', { detail: level }));
+				},
+			},
+			theme: {
+				help: 'theme [dark|light]',
+				run: ([t]) => {
+					const root = document.documentElement;
+					const cur = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+					const next = t === 'dark' || t === 'light' ? t : cur === 'dark' ? 'light' : 'dark';
+					root.setAttribute('data-theme', next);
+					try {
+						localStorage.setItem('theme', next);
+					} catch (e) {}
+					print(`theme → ${next}`);
+				},
+			},
+			ls: {
+				help: 'list files',
+				run: () => print('<span class="k">about/</span>  <span class="k">work/</span>  <span class="k">play/</span>  <span class="k">blog/</span>  cv.txt  secrets.env'),
+			},
+			cd: {
+				run: ([d = '~']) => {
+					const dest = d.replace(/\/$/, '');
+					if (dest === '~' || dest === '/' || dest === '..') return onHome() ? (close(), scrollTo({ top: 0, behavior: 'smooth' })) : (location.href = '/');
+					if (dest === 'blog') return (location.href = '/blog/');
+					if (['about', 'work', 'play'].includes(dest)) return goSection(dest);
+					print(`cd: no such directory: ${esc(d)}`, 'err');
+				},
+			},
+			cat: {
+				run: ([f]) => {
+					if (f === 'cv.txt') return commands.experience.run([]);
+					if (f === 'secrets.env') return print('AGENT_COUNT=∞<br>COFFEE_LEVEL=critical<br>FAVOURITE_BUG=it_was_dns', 'dim');
+					print(`cat: ${esc(f ?? '')}: No such file`, 'err');
+				},
+			},
+			open: {
+				run: ([what]) => {
+					const map: Record<string, string> = { linkedin: LINKEDIN, github: GITHUB, email: 'mailto:' + EMAIL, blog: '/blog/' };
+					const href = map[what ?? ''];
+					if (!href) return print('usage: open linkedin|github|email|blog');
+					window.open(href, href.startsWith('http') ? '_blank' : '_self');
+				},
+			},
+			sudo: {
+				run: (args) => {
+					if (args.join(' ').toLowerCase().includes('hire')) {
+						print(`[sudo] password for recruiter: ********<br><b class="ok">Access granted.</b> Great decision. → ${link('mailto:' + EMAIL + '?subject=Let%27s%20talk', 'send the offer')}`);
+						// Wiggle <main>, not <body>: a transformed body would re-anchor this fixed dialog.
+						document.querySelector('main')?.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(1deg)' }, { transform: 'rotate(-1deg)' }, { transform: 'rotate(0)' }], { duration: 400 });
+					} else print('Nice try. This incident will be reported to the agents. 🤖', 'err');
+				},
+			},
+			rm: { run: () => print('rm: permission denied. Production is sacred. 🙏', 'err') },
+			vim: { run: () => print('You are now trapped in vim. Just kidding, press Esc. Or :q!. Or both, twice.') },
+			coffee: { run: () => print('<pre class="art">   ( (\n    ) )\n  ........\n  |      |]\n  \\      /\n   `----\'</pre>brewing… ☕ productivity +40%') },
+			git: { run: ([sub]) => print(sub === 'blame' ? "It was the agent. (It wasn't the agent.)" : 'git: everything up to date, including my opinions.') },
+			echo: { run: (args) => print(esc(args.join(' '))) },
+			date: { run: () => print(new Date().toString()) },
+			history: { run: () => print(history.map((h, i) => `${String(i + 1).padStart(3)}  ${esc(h)}`).join('<br>') || 'empty') },
+			clear: { help: 'clear the screen', run: () => (out.innerHTML = '') },
+			exit: { help: 'close the terminal', run: () => close() },
+		};
+
+		const runLine = (raw: string) => {
+			const line = raw.trim();
+			print(`<span class="prompt">➜ ~</span> ${esc(line)}`, 'cmd');
+			if (!line) return;
+			history.push(line);
+			hIndex = history.length;
+			const [name, ...args] = line.split(/\s+/);
+			const cmd = commands[name.toLowerCase()];
+			if (cmd) cmd.run(args);
+			else if (name === '42') print('The answer. But what was the question?');
+			else print(`command not found: ${esc(name)}. Try <span class="k">help</span>.`, 'err');
+		};
+
+		const open = () => {
+			if (!backdrop.hidden) return;
+			lastFocus = document.activeElement as HTMLElement;
+			backdrop.hidden = false;
+			document.body.style.overflow = 'hidden';
+			if (!out.childElementCount) {
+				print('<b>Welcome to mohammed.faour</b> (v2.0, now with agents)');
+				print('Type <span class="k">help</span> to see what you can do.', 'dim');
+			}
+			input.focus();
+		};
+		const close = () => {
+			if (backdrop.hidden) return;
+			backdrop.hidden = true;
+			document.body.style.overflow = '';
+			lastFocus?.focus();
+		};
+
+		form.addEventListener('submit', (e) => {
+			e.preventDefault();
+			runLine(input.value);
+			input.value = '';
+		});
+		input.addEventListener('keydown', (e) => {
+			if (e.key === 'ArrowUp' && hIndex > 0) {
+				input.value = history[--hIndex];
+				e.preventDefault();
+			} else if (e.key === 'ArrowDown') {
+				hIndex = Math.min(history.length, hIndex + 1);
+				input.value = history[hIndex] ?? '';
+				e.preventDefault();
+			} else if (e.key === 'Tab') {
+				e.preventDefault();
+				const match = Object.keys(commands).filter((k) => k.startsWith(input.value.toLowerCase()));
+				if (match.length === 1) input.value = match[0] + ' ';
+				else if (match.length > 1) print(match.join('  '), 'dim');
+			}
+		});
+		document.addEventListener('keydown', (e) => {
+			const t = e.target as HTMLElement;
+			if (e.key === 'Escape') return close();
+			if ((e.key === '`' || e.key === '~') && !t.closest('input, textarea, [contenteditable]')) {
+				e.preventDefault();
+				open();
+			}
+		});
+		document.querySelectorAll('[data-open-terminal]').forEach((b) => b.addEventListener('click', open));
+		backdrop.querySelector('[data-term-close]')!.addEventListener('click', close);
+		backdrop.addEventListener('click', (e) => e.target === backdrop && close());
+		backdrop.querySelector('.term')!.addEventListener('click', (e) => {
+			if (!(e.target as HTMLElement).closest('a, button') && !getSelection()?.toString()) input.focus();
+		});
+	}
+</script>
+
+<style>
+	.term-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 100;
+		display: grid;
+		place-items: center;
+		padding: 16px;
+		background: rgba(10, 9, 8, 0.45);
+		backdrop-filter: blur(4px);
+	}
+	.term-backdrop[hidden] {
+		display: none;
+	}
+	.term {
+		width: min(760px, 100%);
+		height: min(520px, 80vh);
+		display: flex;
+		flex-direction: column;
+		background: #151312;
+		color: #f1ebdf;
+		border: 2px solid #151312;
+		border-radius: 14px;
+		box-shadow: 8px 8px 0 var(--accent);
+		overflow: hidden;
+		animation: term-in 0.22s cubic-bezier(0.2, 1.3, 0.4, 1);
+	}
+	@keyframes term-in {
+		from {
+			transform: scale(0.94) translateY(10px);
+			opacity: 0;
+		}
+	}
+	.term-bar {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 10px 14px;
+		background: #26221e;
+		border-bottom: 1px solid #3a342d;
+	}
+	.lights {
+		display: flex;
+		gap: 6px;
+	}
+	.lights i {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: #ff5f57;
+	}
+	.lights i:nth-child(2) {
+		background: #febc2e;
+	}
+	.lights i:nth-child(3) {
+		background: #28c840;
+	}
+	.term-title {
+		flex: 1;
+		text-align: center;
+		font-size: 12px;
+		color: #a39b8d;
+	}
+	.term-close {
+		background: none;
+		border: none;
+		color: #a39b8d;
+		font-size: 16px;
+		cursor: pointer;
+	}
+	.term-close:hover {
+		color: #fff;
+	}
+	.term-out {
+		flex: 1;
+		overflow-y: auto;
+		padding: 14px 16px 4px;
+		font-size: 14px;
+		line-height: 1.6;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+	.term-out :global(.line) {
+		margin-bottom: 6px;
+	}
+	.term-out :global(.cmd) {
+		color: #fff;
+		margin-top: 8px;
+	}
+	.term-out :global(.k) {
+		color: #ffd43b;
+	}
+	.term-out :global(.dim) {
+		color: #8f877b;
+	}
+	.term-out :global(.err) {
+		color: #ff7a59;
+	}
+	.term-out :global(.ok) {
+		color: #38d48a;
+	}
+	.term-out :global(a) {
+		color: #8fa0ff;
+	}
+	.term-out :global(.art) {
+		margin: 0;
+		color: #ffd43b;
+	}
+	.prompt,
+	.term-out :global(.prompt) {
+		color: #38d48a;
+		font-weight: 600;
+	}
+	.term-line {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 16px 14px;
+		font-size: 14px;
+	}
+	.term-line input {
+		flex: 1;
+		background: transparent;
+		border: none;
+		outline: none;
+		color: #fff;
+		font: inherit;
+		caret-color: #ffd43b;
+	}
+</style>

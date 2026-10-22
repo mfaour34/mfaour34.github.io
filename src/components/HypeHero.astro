@@ -1,0 +1,479 @@
+---
+import Swarm from './Swarm.astro';
+import { CAREER_START, EMAIL, GITHUB, LINKEDIN, yearsSince } from '../consts';
+
+const years = yearsSince(CAREER_START);
+const Y = '<span class="yrs">' + years + '</span>';
+
+// Each notch rewrites the bio. Notch 2 is the honest one and the default.
+const levels = [
+	{
+		label: 'Modest',
+		html: `I'm a backend engineer. I write TypeScript. It mostly works.`,
+		stickers: [
+			{ t: 'it compiles ✓', c: 'green', x: 72, y: 18, r: 6 },
+			{ t: '☕ fuelled', c: 'card', x: 80, y: 70, r: -5 },
+		],
+	},
+	{
+		label: 'Honest-ish',
+		html: `I'm a backend engineer at FINN in Munich. I build the systems that get cars to people's front doors.`,
+		stickers: [
+			{ t: '🚗 → 🚪', c: 'yellow', x: 76, y: 16, r: 8 },
+			{ t: 'Munich 🥨', c: 'card', x: 82, y: 72, r: -6 },
+		],
+	},
+	{
+		label: 'Accurate',
+		html: `I'm a senior software engineer with ${Y} years on backend and serverless systems. At <a href="#work">FINN</a> I own the platform behind vehicle deliveries and logistics. AI agents help me build it, and I plan, orchestrate and review everything they ship.`,
+		stickers: [
+			{ t: '−50% MTTR', c: 'yellow', x: 74, y: 14, r: 7 },
+			{ t: 'Postgres 🐘', c: 'blue', x: 86, y: 46, r: -8 },
+			{ t: 'plans first', c: 'card', x: 76, y: 78, r: 4 },
+		],
+	},
+	{
+		label: 'Confident',
+		html: `Senior engineer. ${Y} years of AWS. Halved incident resolution time. Moved core ops data off a no-code platform onto Postgres <em>without stopping live operations</em>. The agents firefight, and I review every fix before it ships.`,
+		stickers: [
+			{ t: 'zero-downtime migrations', c: 'green', x: 66, y: 12, r: -4 },
+			{ t: '🔥 firefighter', c: 'accent', x: 84, y: 44, r: 9 },
+			{ t: 'agents ×12', c: 'yellow', x: 72, y: 80, r: -7 },
+		],
+	},
+	{
+		label: 'LinkedIn',
+		html: `🚀 Humbled to share that I'm a passionate, results-driven Senior Engineer leveraging <em>synergistic serverless paradigms</em> to disrupt last-mile mobility. Agentic-AI-first. 10x engineer (agents included). Thoughts? 👇`,
+		stickers: [
+			{ t: 'Thought Leader™', c: 'pink', x: 70, y: 10, r: -9 },
+			{ t: '#Synergy', c: 'blue', x: 88, y: 36, r: 10 },
+			{ t: '👏 1,204 reactions', c: 'card', x: 66, y: 60, r: 5 },
+			{ t: 'Open to SYNERGY', c: 'yellow', x: 84, y: 82, r: -6 },
+		],
+	},
+	{
+		label: 'Conductor',
+		html: `I AM THE CONDUCTOR. MY AGENTS NEVER SLEEP. YOUR CARS WILL BE DELIVERED. YOUR INCIDENTS WILL BE RESOLVED. <a href="mailto:${EMAIL}">HIRE ME</a> OR I WILL SIMPLY SPAWN ANOTHER AGENT. ⚡`,
+		stickers: [
+			{ t: '⚡⚡⚡', c: 'yellow', x: 68, y: 8, r: 12 },
+			{ t: 'AGENTS ×∞', c: 'accent', x: 86, y: 30, r: -10 },
+			{ t: 'HIRE ME', c: 'pink', x: 70, y: 56, r: 8 },
+			{ t: '💥 BOOM', c: 'yellow', x: 88, y: 80, r: -12 },
+		],
+	},
+];
+const DEFAULT_LEVEL = 2;
+const robots = [0, 0, 1, 3, 8, 24];
+---
+
+<section class="hero" id="top" data-hype-root>
+	<Swarm />
+	<div class="wrap hero-inner">
+		<div class="hero-copy">
+			<div class="hero-id">
+				<img class="avatar" src="/assets/avatar.png" width="72" height="72" alt="Mohammed Faour" />
+				<span class="status"><span class="pulse" aria-hidden="true"></span>Senior Software Engineer at FINN · Munich</span>
+			</div>
+
+			<h1 class="hero-title">
+				Mohammed<br /><span class="hl">Faour</span><span class="dot">.</span>
+			</h1>
+
+			<p class="bio" aria-live="polite" data-bio set:html={levels[DEFAULT_LEVEL].html} />
+
+			<div class="hype card">
+				<div class="hype-head">
+					<label for="hype" class="hype-label">How hard should I sell myself?</label>
+					<span class="hype-value" data-hype-value>{levels[DEFAULT_LEVEL].label}</span>
+				</div>
+				<input
+					id="hype"
+					type="range"
+					min="0"
+					max={levels.length - 1}
+					step="1"
+					value={DEFAULT_LEVEL}
+					aria-valuetext={levels[DEFAULT_LEVEL].label}
+				/>
+				<div class="hype-scale" aria-hidden="true"><span>humble</span><span>unhinged</span></div>
+			</div>
+
+			<div class="cta">
+				<a class="btn primary" href={`mailto:${EMAIL}`}>Say hi 👋</a>
+				<a class="btn" href={LINKEDIN} target="_blank" rel="me noopener">LinkedIn</a>
+				<a class="btn" href={GITHUB} target="_blank" rel="me noopener">GitHub</a>
+			</div>
+			<p class="hint muted">Psst: move your mouse around up here, and click to file a ticket for the agents.</p>
+		</div>
+
+		<div class="stickers" aria-hidden="true" data-stickers></div>
+	</div>
+	<div class="robots" aria-hidden="true" data-robots></div>
+
+	<script is:inline type="application/json" data-hype-levels set:html={JSON.stringify({ levels, robots, start: DEFAULT_LEVEL })} />
+</section>
+
+<script>
+	type Sticker = { t: string; c: string; x: number; y: number; r: number };
+	type Level = { label: string; html: string; stickers: Sticker[] };
+
+	const root = document.querySelector<HTMLElement>('[data-hype-root]');
+	if (root) {
+		const data = JSON.parse(root.querySelector('[data-hype-levels]')!.textContent!) as {
+			levels: Level[];
+			robots: number[];
+			start: number;
+		};
+		const slider = root.querySelector<HTMLInputElement>('#hype')!;
+		const bio = root.querySelector<HTMLElement>('[data-bio]')!;
+		const value = root.querySelector<HTMLElement>('[data-hype-value]')!;
+		const stickers = root.querySelector<HTMLElement>('[data-stickers]')!;
+		const robots = root.querySelector<HTMLElement>('[data-robots]')!;
+		const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const max = data.levels.length - 1;
+		let flashTimer: number | undefined;
+
+		const yearsNow = () => {
+			const now = new Date();
+			return now.getFullYear() - 2020 - (now.getMonth() < 7 ? 1 : 0);
+		};
+
+		const render = (level: number, animate: boolean) => {
+			const l = data.levels[level];
+			bio.innerHTML = l.html;
+			bio.querySelectorAll('.yrs').forEach((el) => (el.textContent = String(yearsNow())));
+			value.textContent = l.label;
+			slider.setAttribute('aria-valuetext', l.label);
+			root.dataset.level = String(level);
+
+			stickers.innerHTML = '';
+			l.stickers.forEach((s, i) => {
+				const el = document.createElement('span');
+				el.className = `sticker sticker--${s.c}${animate ? ' pop' : ''}`;
+				el.textContent = s.t;
+				el.style.left = `${s.x}%`;
+				el.style.top = `${s.y}%`;
+				el.style.setProperty('--r', `${s.r}deg`);
+				el.style.animationDelay = `${i * 90}ms`;
+				stickers.appendChild(el);
+			});
+
+			robots.textContent = '🤖'.repeat(data.robots[level]);
+
+			clearInterval(flashTimer);
+			document.body.classList.remove('invert');
+			if (level === max && animate && !reduced) {
+				// Three slow flashes (under 3 per second), then stop.
+				let n = 0;
+				flashTimer = window.setInterval(() => {
+					document.body.classList.toggle('invert');
+					if (++n >= 6) clearInterval(flashTimer);
+				}, 400);
+			}
+
+			window.dispatchEvent(new CustomEvent('hype:level', { detail: { level, max } }));
+		};
+
+		let saved = data.start;
+		try {
+			const s = sessionStorage.getItem('hype');
+			if (s !== null) saved = Math.min(max, Math.max(0, Number(s)));
+		} catch (e) {}
+		slider.value = String(saved);
+		render(saved, false);
+
+		slider.addEventListener('input', () => {
+			const level = Number(slider.value);
+			try {
+				sessionStorage.setItem('hype', String(level));
+			} catch (e) {}
+			render(level, true);
+		});
+
+		// Lets the terminal's `hype` command move the slider.
+		window.addEventListener('hype:set', (e) => {
+			const level = Math.min(max, Math.max(0, (e as CustomEvent<number>).detail));
+			slider.value = String(level);
+			slider.dispatchEvent(new Event('input'));
+		});
+	}
+</script>
+
+<style>
+	.hero {
+		position: relative;
+		overflow: hidden;
+		border-bottom: 2px solid var(--ink);
+		min-height: calc(100vh - 64px);
+		min-height: calc(100svh - 64px);
+		display: flex;
+		align-items: center;
+	}
+	.hero-inner {
+		position: relative;
+		z-index: 2;
+		width: 100%;
+		padding-top: 56px;
+		padding-bottom: 96px;
+		pointer-events: none;
+	}
+	.hero-copy {
+		max-width: 680px;
+		pointer-events: auto;
+	}
+	.hero-id {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		flex-wrap: wrap;
+	}
+	.avatar {
+		width: 72px;
+		height: 72px;
+		border-radius: 50%;
+		object-fit: cover;
+		border: 3px solid var(--ink);
+		box-shadow: 3px 3px 0 var(--ink);
+		transform: rotate(-4deg);
+	}
+	.status {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+		font: 500 13px/1.3 var(--font-mono);
+		background: var(--card);
+		border: 2px solid var(--ink);
+		border-radius: 999px;
+		padding: 8px 14px;
+	}
+	.pulse {
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		background: var(--green);
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 60%, transparent);
+		animation: pulse 2s infinite;
+	}
+	@keyframes pulse {
+		70% {
+			box-shadow: 0 0 0 9px transparent;
+		}
+		100% {
+			box-shadow: 0 0 0 0 transparent;
+		}
+	}
+	.hero-title {
+		font-size: clamp(60px, 13vw, 148px);
+		font-weight: 800;
+		line-height: 0.88;
+		letter-spacing: -0.055em;
+		margin: 26px 0 26px;
+		transition: transform 0.3s;
+	}
+	.hl {
+		background: var(--accent);
+		color: var(--on-accent);
+		padding: 0 0.12em;
+		border: 3px solid var(--ink);
+		border-radius: 0.12em;
+		box-shadow: 6px 6px 0 var(--ink);
+		display: inline-block;
+		transform: rotate(-2deg);
+		margin-top: 0.08em;
+	}
+	.dot {
+		color: var(--accent);
+	}
+	[data-level='5'] .hero-title {
+		animation: shake 0.35s infinite;
+	}
+	[data-level='4'] .hl {
+		background: var(--blue);
+	}
+	[data-level='5'] .hl {
+		background: var(--yellow);
+		color: #151312;
+	}
+	@keyframes shake {
+		0%,
+		100% {
+			transform: translate(0, 0) rotate(0);
+		}
+		25% {
+			transform: translate(-2px, 1px) rotate(-0.6deg);
+		}
+		75% {
+			transform: translate(2px, -1px) rotate(0.6deg);
+		}
+	}
+
+	.bio {
+		font-size: clamp(18px, 2.2vw, 22px);
+		line-height: 1.55;
+		min-height: 6.4em;
+		max-width: 620px;
+		margin-bottom: 22px;
+	}
+	.bio :global(a) {
+		text-decoration-color: var(--accent);
+		text-decoration-thickness: 3px;
+		text-underline-offset: 4px;
+		font-weight: 600;
+	}
+	.bio :global(em) {
+		font-style: normal;
+		background: var(--yellow);
+		color: #151312;
+		padding: 0 4px;
+		border-radius: 4px;
+	}
+	[data-level='5'] .bio {
+		font-family: var(--font-display);
+		font-weight: 800;
+		letter-spacing: -0.01em;
+	}
+
+	.hype {
+		padding: 16px 18px 12px;
+		max-width: 520px;
+	}
+	.hype-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 12px;
+		margin-bottom: 10px;
+	}
+	.hype-label {
+		font-weight: 700;
+		font-size: 15px;
+	}
+	.hype-value {
+		font: 600 13px/1 var(--font-mono);
+		background: var(--ink);
+		color: var(--paper);
+		padding: 6px 9px;
+		border-radius: 7px;
+		white-space: nowrap;
+	}
+	.hype-scale {
+		display: flex;
+		justify-content: space-between;
+		font: 500 12px/1 var(--font-mono);
+		color: var(--faint);
+		margin-top: 6px;
+	}
+	input[type='range'] {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 100%;
+		height: 32px;
+		background: transparent;
+		cursor: pointer;
+		margin: 0;
+	}
+	input[type='range']::-webkit-slider-runnable-track {
+		height: 12px;
+		border: 2px solid var(--ink);
+		border-radius: 999px;
+		background: linear-gradient(90deg, var(--green), var(--yellow) 50%, var(--accent));
+	}
+	input[type='range']::-moz-range-track {
+		height: 8px;
+		border: 2px solid var(--ink);
+		border-radius: 999px;
+		background: linear-gradient(90deg, var(--green), var(--yellow) 50%, var(--accent));
+	}
+	input[type='range']::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		width: 30px;
+		height: 30px;
+		margin-top: -11px;
+		border-radius: 50%;
+		background: var(--card);
+		border: 3px solid var(--ink);
+		box-shadow: 2px 2px 0 var(--ink);
+	}
+	input[type='range']::-moz-range-thumb {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: var(--card);
+		border: 3px solid var(--ink);
+		box-shadow: 2px 2px 0 var(--ink);
+	}
+
+	.cta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		margin-top: 26px;
+	}
+	.hint {
+		font: 500 13px/1.4 var(--font-mono);
+		margin: 18px 0 0;
+	}
+
+	.stickers {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+	.stickers :global(.sticker) {
+		position: absolute;
+		transform: translate(-50%, -50%) rotate(var(--r));
+		font-size: clamp(14px, 1.6vw, 20px);
+		padding: 10px 16px;
+	}
+	.stickers :global(.sticker.pop) {
+		animation: pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+	}
+	@keyframes pop {
+		from {
+			transform: translate(-50%, -50%) rotate(0) scale(0);
+		}
+		to {
+			transform: translate(-50%, -50%) rotate(var(--r)) scale(1);
+		}
+	}
+	.stickers :global(.sticker--card) {
+		background: var(--card);
+		color: var(--ink);
+	}
+	.stickers :global(.sticker--green) {
+		background: var(--green);
+		color: #151312;
+	}
+	.stickers :global(.sticker--blue) {
+		background: var(--blue);
+		color: #fffdf8;
+	}
+	.stickers :global(.sticker--accent) {
+		background: var(--accent);
+		color: #fffdf8;
+	}
+	.stickers :global(.sticker--pink) {
+		background: var(--pink);
+		color: #151312;
+	}
+
+	.robots {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 14px;
+		z-index: 2;
+		text-align: center;
+		font-size: 22px;
+		letter-spacing: 4px;
+		pointer-events: none;
+		white-space: nowrap;
+		overflow: hidden;
+	}
+
+	@media (max-width: 900px) {
+		.stickers {
+			display: none;
+		}
+	}
+</style>

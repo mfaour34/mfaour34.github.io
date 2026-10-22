@@ -1,0 +1,68 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+---
+
+<Base title="Blog" description="Notes on backend engineering, logistics systems and building software with AI agents.">
+	<section class="section">
+		<div class="wrap">
+			<span class="kicker">Blog</span>
+			<h1 class="title">Notes from the <em>engine room</em>.</h1>
+			<p class="lead muted">
+				Occasional writing on backend systems, logistics, and building software with agents without losing control of it.
+				<a href="/rss.xml">RSS feed</a>.
+			</p>
+			{
+				posts.length ? (
+					<div class="posts">
+						{posts.map((p) => (
+							<PostCard post={p} />
+						))}
+					</div>
+				) : (
+					<p class="card empty">No posts yet. The first one is brewing ☕</p>
+				)
+			}
+		</div>
+	</section>
+</Base>
+
+<style>
+	.title {
+		font-size: clamp(44px, 8vw, 88px);
+		font-weight: 800;
+		margin-bottom: 18px;
+	}
+	.title em {
+		font-style: normal;
+		color: var(--accent);
+	}
+	.lead {
+		font-size: 19px;
+		max-width: 640px;
+		margin-bottom: 40px;
+	}
+	.lead a {
+		color: var(--ink);
+		text-decoration-color: var(--accent);
+		text-decoration-thickness: 2px;
+	}
+	.posts {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 20px;
+	}
+	.empty {
+		padding: 24px;
+	}
+	@media (max-width: 700px) {
+		.posts {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

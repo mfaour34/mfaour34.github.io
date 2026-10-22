@@ -1,0 +1,570 @@
+---
+const routes = [
+	{ key: 'wash', icon: '🧽', label: 'Car wash', hint: 'dirty' },
+	{ key: 'shop', icon: '🔧', label: 'Workshop', hint: 'damaged' },
+	{ key: 'charge', icon: '🔋', label: 'Charging', hint: 'low battery' },
+	{ key: 'deliver', icon: '🚚', label: 'Next delivery', hint: 'ready to go' },
+];
+---
+
+<div class="dispatch card" data-dispatch>
+	<div class="hud">
+		<span>Score <b data-score>0</b></span>
+		<span>Combo <b data-combo>×1</b></span>
+		<span class="lives" data-lives aria-label="Lives">❤️❤️❤️</span>
+		<span>Best <b data-best>0</b></span>
+	</div>
+
+	<div class="board">
+		<div class="lot">
+			<div class="lot-head mono">Return lot <span data-lot-count>0/6</span></div>
+			<ol class="cars" data-cars aria-live="polite"></ol>
+		</div>
+		<div class="routes" role="group" aria-label="Destinations">
+			{
+				routes.map((r, i) => (
+					<button class="route" type="button" data-route={r.key}>
+						<span class="route-key mono">{i + 1}</span>
+						<span class="route-icon" aria-hidden="true">{r.icon}</span>
+						<span class="route-label">{r.label}</span>
+						<span class="route-hint mono">{r.hint}</span>
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="overlay" data-overlay>
+		<div class="overlay-box">
+			<h3 data-overlay-title>Dispatch</h3>
+			<p data-overlay-text>
+				Returned cars pile up in the lot. Route each one by its condition before its timer runs out. Click a car to select it (the oldest is
+				selected by default), then pick a destination, or press <kbd>1</kbd>–<kbd>4</kbd>.
+			</p>
+			<button class="btn primary" type="button" data-start>Start shift ▶</button>
+		</div>
+	</div>
+</div>
+
+<script>
+	type Kind = 'wash' | 'shop' | 'charge' | 'deliver';
+	type Car = { id: number; kind: Kind; plate: string; color: string; born: number; ttl: number; el: HTMLLIElement };
+
+	const KINDS: Record<Kind, { badge: string; label: string }> = {
+		wash: { badge: '🧽', label: 'Dirty' },
+		shop: { badge: '🔧', label: 'Damaged' },
+		charge: { badge: '🔋', label: 'Low battery' },
+		deliver: { badge: '✨', label: 'Ready' },
+	};
+	const ORDER: Kind[] = ['wash', 'shop', 'charge', 'deliver'];
+	const COLORS = ['#ff4f1f', '#3d5afe', '#19b46b', '#ffd43b', '#ff8fc8', '#151312', '#e8e2d6'];
+	const CAPACITY = 6;
+
+	const root = document.querySelector<HTMLElement>('[data-dispatch]');
+	if (root) {
+		const $ = <T extends HTMLElement>(s: string) => root.querySelector<T>(s)!;
+		const list = $<HTMLOListElement>('[data-cars]');
+		const overlay = $('[data-overlay]');
+		const scoreEl = $('[data-score]');
+		const comboEl = $('[data-combo]');
+		const livesEl = $('[data-lives]');
+		const bestEl = $('[data-best]');
+		const lotCount = $('[data-lot-count]');
+
+		let cars: Car[] = [];
+		let selected: number | null = null;
+		let score = 0;
+		let combo = 1;
+		let lives = 3;
+		let best = 0;
+		let playing = false;
+		let visible = true;
+		let elapsed = 0;
+		let lastTick = 0;
+		let spawnIn = 0;
+		let nextId = 1;
+
+		try {
+			best = Number(localStorage.getItem('dispatch-best') || 0);
+		} catch (e) {}
+		bestEl.textContent = String(best);
+
+		const plate = () => {
+			const L = 'ABCDEFGHKLMNPRSTVWXYZ';
+			const r = (n: number) => Array.from({ length: n }, () => L[Math.floor(Math.random() * L.length)]).join('');
+			return `M-${r(2)} ${100 + Math.floor(Math.random() * 900)}E`;
+		};
+
+		const hud = () => {
+			scoreEl.textContent = String(score);
+			comboEl.textContent = `×${combo}`;
+			livesEl.textContent = '❤️'.repeat(lives) + '🖤'.repeat(3 - lives);
+			lotCount.textContent = `${cars.length}/${CAPACITY}`;
+		};
+
+		const select = (id: number | null) => {
+			selected = id ?? cars[0]?.id ?? null;
+			cars.forEach((c) => c.el.classList.toggle('selected', c.id === selected));
+		};
+
+		const remove = (car: Car, cls: string) => {
+			cars = cars.filter((c) => c !== car);
+			car.el.classList.remove('selected', 'urgent');
+			car.el.classList.add(cls);
+			setTimeout(() => car.el.remove(), 380);
+			if (selected === car.id) select(null);
+			hud();
+		};
+
+		const loseLife = (why: string) => {
+			lives--;
+			combo = 1;
+			root.classList.remove('hurt');
+			void root.offsetWidth;
+			root.classList.add('hurt');
+			toast(why, 'bad');
+			hud();
+			if (lives <= 0) end();
+		};
+
+		const toast = (text: string, kind: 'good' | 'bad') => {
+			const t = document.createElement('div');
+			t.className = `toast ${kind}`;
+			t.textContent = text;
+			root.appendChild(t);
+			setTimeout(() => t.remove(), 900);
+		};
+
+		const spawn = (now: number) => {
+			if (cars.length >= CAPACITY) {
+				loseLife('Lot overflow! 🚧');
+				return;
+			}
+			const kind = ORDER[Math.floor(Math.random() * ORDER.length)];
+			const ttl = Math.max(4200, 10000 - elapsed * 0.09);
+			const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+			const el = document.createElement('li');
+			el.className = 'car';
+			const id = nextId++;
+			const p = plate();
+			el.innerHTML = `
+				<button type="button" class="car-btn" aria-label="${KINDS[kind].label} car ${p}">
+					<span class="car-body" style="--car:${color}">🚗</span>
+					<span class="car-info"><span class="plate mono">${p}</span><span class="cond">${KINDS[kind].badge} ${KINDS[kind].label}</span></span>
+					<span class="timer"><span class="timer-fill"></span></span>
+				</button>`;
+			el.querySelector('button')!.addEventListener('click', () => select(id));
+			list.appendChild(el);
+			cars.push({ id, kind, plate: p, color, born: now, ttl, el });
+			if (selected === null) select(id);
+			hud();
+		};
+
+		const route = (kind: Kind) => {
+			if (!playing) return;
+			const car = cars.find((c) => c.id === selected) ?? cars[0];
+			if (!car) return;
+			const btn = root.querySelector<HTMLElement>(`[data-route="${kind}"]`);
+			btn?.classList.remove('flash-good', 'flash-bad');
+			void btn?.offsetWidth;
+			if (car.kind === kind) {
+				const gained = 10 * combo;
+				score += gained;
+				combo = Math.min(5, combo + 1);
+				btn?.classList.add('flash-good');
+				toast(`+${gained}`, 'good');
+				remove(car, 'out-good');
+			} else {
+				score = Math.max(0, score - 5);
+				combo = 1;
+				btn?.classList.add('flash-bad');
+				toast(`Wrong bay −5`, 'bad');
+				hud();
+			}
+		};
+
+		const tick = (now: number) => {
+			if (!playing) return;
+			const dt = lastTick ? now - lastTick : 0;
+			lastTick = now;
+			if (visible) {
+				elapsed += dt;
+				spawnIn -= dt;
+				if (spawnIn <= 0) {
+					spawn(now);
+					spawnIn = Math.max(750, 2300 - elapsed * 0.02);
+				}
+				for (const car of [...cars]) {
+					const left = 1 - (now - car.born) / car.ttl;
+					const fill = car.el.querySelector<HTMLElement>('.timer-fill')!;
+					fill.style.transform = `scaleX(${Math.max(0, left)})`;
+					car.el.classList.toggle('urgent', left < 0.3);
+					if (left <= 0) {
+						remove(car, 'out-bad');
+						loseLife(`${car.plate} waited too long ⏰`);
+						if (!playing) return;
+					}
+				}
+			} else {
+				// Paused while scrolled away: push every deadline back.
+				cars.forEach((c) => (c.born += dt));
+			}
+			requestAnimationFrame(tick);
+		};
+
+		const start = () => {
+			cars.forEach((c) => c.el.remove());
+			cars = [];
+			selected = null;
+			score = 0;
+			combo = 1;
+			lives = 3;
+			elapsed = 0;
+			lastTick = 0;
+			spawnIn = 300;
+			playing = true;
+			overlay.hidden = true;
+			hud();
+			requestAnimationFrame(tick);
+		};
+
+		const end = () => {
+			playing = false;
+			const isBest = score > best;
+			if (isBest) {
+				best = score;
+				try {
+					localStorage.setItem('dispatch-best', String(best));
+				} catch (e) {}
+				bestEl.textContent = String(best);
+			}
+			const verdict =
+				score >= 600 ? 'Ops wants to clone you. 🏆' : score >= 300 ? 'Solid shift. The lot thanks you. 🚗' : score >= 120 ? 'Not bad for a first day.' : 'Operations would like a word. 😬';
+			$('[data-overlay-title]').textContent = isBest && score > 0 ? `New best: ${score}!` : `Shift over: ${score}`;
+			$('[data-overlay-text]').textContent = verdict;
+			$('[data-start]').textContent = 'Another shift ↻';
+			overlay.hidden = false;
+		};
+
+		$('[data-start]').addEventListener('click', start);
+		root.querySelectorAll<HTMLButtonElement>('[data-route]').forEach((b) => b.addEventListener('click', () => route(b.dataset.route as Kind)));
+
+		document.addEventListener('keydown', (e) => {
+			if (!playing || !visible) return;
+			const t = e.target as HTMLElement;
+			if (t.closest('input, textarea, [data-terminal]')) return;
+			const i = ['1', '2', '3', '4'].indexOf(e.key);
+			if (i >= 0) {
+				e.preventDefault();
+				route(ORDER[i]);
+			}
+		});
+
+		new IntersectionObserver(([entry]) => (visible = entry.isIntersecting), { threshold: 0.35 }).observe(root);
+
+		// Lets the terminal's `play` command start a game.
+		window.addEventListener('dispatch:start', () => {
+			root.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			if (!playing) start();
+		});
+	}
+</script>
+
+<style>
+	.dispatch {
+		position: relative;
+		padding: 18px;
+		overflow: hidden;
+	}
+	.dispatch:global(.hurt) {
+		animation: hurt 0.35s;
+	}
+	@keyframes hurt {
+		25% {
+			transform: translateX(-6px);
+		}
+		75% {
+			transform: translateX(6px);
+		}
+	}
+	.hud {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px 22px;
+		font: 500 14px/1 var(--font-mono);
+		padding-bottom: 14px;
+		border-bottom: 2px dashed var(--ink);
+		margin-bottom: 16px;
+	}
+	.hud b {
+		font-weight: 700;
+		color: var(--accent);
+	}
+	.lives {
+		letter-spacing: 2px;
+	}
+	.board {
+		display: grid;
+		grid-template-columns: 1.35fr 1fr;
+		gap: 16px;
+	}
+	.lot-head {
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--muted);
+		display: flex;
+		justify-content: space-between;
+		margin-bottom: 8px;
+	}
+	.cars {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 8px;
+		min-height: 336px;
+		align-content: start;
+	}
+	.cars :global(.car) {
+		animation: slide-in 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+	}
+	.cars :global(.car-btn) {
+		width: 100%;
+		display: grid;
+		grid-template-columns: auto 1fr;
+		grid-template-rows: auto auto;
+		column-gap: 12px;
+		align-items: center;
+		text-align: left;
+		font: inherit;
+		color: var(--ink);
+		background: var(--paper);
+		border: 2px solid var(--ink);
+		border-radius: 12px;
+		padding: 8px 12px;
+		cursor: pointer;
+	}
+	.cars :global(.selected .car-btn) {
+		background: var(--yellow);
+		color: #151312;
+		box-shadow: 3px 3px 0 var(--ink);
+		transform: translate(-2px, -2px);
+	}
+	.cars :global(.car-body) {
+		grid-row: span 2;
+		font-size: 26px;
+		filter: drop-shadow(0 0 0 var(--car));
+		display: grid;
+		place-items: center;
+		width: 40px;
+		height: 40px;
+		border-radius: 10px;
+		border: 2px solid var(--ink);
+		background: color-mix(in srgb, var(--car) 35%, transparent);
+	}
+	.cars :global(.car-info) {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.cars :global(.plate) {
+		font-size: 12px;
+		border: 1.5px solid currentColor;
+		border-radius: 4px;
+		padding: 1px 5px;
+	}
+	.cars :global(.timer) {
+		height: 6px;
+		border-radius: 99px;
+		background: color-mix(in srgb, var(--ink) 12%, transparent);
+		overflow: hidden;
+		margin-top: 6px;
+	}
+	.cars :global(.timer-fill) {
+		display: block;
+		height: 100%;
+		background: var(--green);
+		transform-origin: left;
+	}
+	.cars :global(.urgent .timer-fill) {
+		background: var(--accent);
+	}
+	.cars :global(.urgent .car-btn) {
+		animation: wobble 0.5s infinite;
+	}
+	.cars :global(.out-good) {
+		animation: out-good 0.38s forwards;
+		pointer-events: none;
+	}
+	.cars :global(.out-bad) {
+		animation: out-bad 0.38s forwards;
+		pointer-events: none;
+	}
+	@keyframes slide-in {
+		from {
+			transform: translateX(-30px);
+			opacity: 0;
+		}
+	}
+	@keyframes out-good {
+		to {
+			transform: translateX(60px);
+			opacity: 0;
+		}
+	}
+	@keyframes out-bad {
+		to {
+			transform: scale(0.8) rotate(-6deg);
+			opacity: 0;
+		}
+	}
+	@keyframes wobble {
+		50% {
+			transform: rotate(-1deg);
+		}
+	}
+
+	.routes {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
+		align-content: start;
+	}
+	.route {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+		padding: 18px 8px 14px;
+		font: inherit;
+		color: var(--ink);
+		background: var(--card);
+		border: 2px solid var(--ink);
+		border-radius: 14px;
+		box-shadow: var(--shadow);
+		cursor: pointer;
+		transition: transform 0.1s, box-shadow 0.1s;
+	}
+	.route:active {
+		transform: translate(3px, 3px);
+		box-shadow: 1px 1px 0 var(--ink);
+	}
+	.route-key {
+		position: absolute;
+		top: 6px;
+		left: 8px;
+		font-size: 11px;
+		color: var(--faint);
+	}
+	.route-icon {
+		font-size: 34px;
+		line-height: 1.1;
+	}
+	.route-label {
+		font-weight: 700;
+		font-size: 15px;
+	}
+	.route-hint {
+		font-size: 11px;
+		color: var(--muted);
+	}
+	.route:global(.flash-good) {
+		animation: flash-good 0.4s;
+	}
+	.route:global(.flash-bad) {
+		animation: flash-bad 0.4s;
+	}
+	@keyframes flash-good {
+		30% {
+			background: var(--green);
+		}
+	}
+	@keyframes flash-bad {
+		30% {
+			background: var(--accent);
+		}
+	}
+
+	.dispatch :global(.toast) {
+		position: absolute;
+		left: 50%;
+		top: 46%;
+		transform: translateX(-50%);
+		font: 800 22px/1 var(--font-display);
+		padding: 8px 14px;
+		border: 2px solid var(--ink);
+		border-radius: 10px;
+		box-shadow: 3px 3px 0 var(--ink);
+		pointer-events: none;
+		animation: rise 0.9s forwards;
+		white-space: nowrap;
+		z-index: 4;
+	}
+	.dispatch :global(.toast.good) {
+		background: var(--green);
+		color: #151312;
+	}
+	.dispatch :global(.toast.bad) {
+		background: var(--accent);
+		color: #fffdf8;
+	}
+	@keyframes rise {
+		to {
+			transform: translate(-50%, -50px);
+			opacity: 0;
+		}
+	}
+
+	.overlay {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		background: color-mix(in srgb, var(--paper) 82%, transparent);
+		backdrop-filter: blur(3px);
+		z-index: 5;
+		padding: 20px;
+	}
+	.overlay[hidden] {
+		display: none;
+	}
+	.overlay-box {
+		max-width: 420px;
+		text-align: center;
+		background: var(--card);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow-lg);
+		padding: 24px;
+	}
+	.overlay-box h3 {
+		font-size: 34px;
+		margin-bottom: 10px;
+	}
+	.overlay-box p {
+		color: var(--muted);
+		font-size: 15px;
+	}
+
+	@media (max-width: 680px) {
+		.board {
+			grid-template-columns: 1fr;
+		}
+		.routes {
+			order: -1;
+		}
+		.cars {
+			min-height: 220px;
+		}
+		.route {
+			padding: 12px 6px 10px;
+		}
+		.route-icon {
+			font-size: 26px;
+		}
+	}
+</style>

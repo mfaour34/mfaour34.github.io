@@ -1,0 +1,233 @@
+:root {
+	--paper: #f7f2e8;
+	--card: #fffdf8;
+	--ink: #151312;
+	--muted: #5d574e;
+	--faint: #8f877b;
+	--accent: #ff4f1f;
+	--yellow: #ffd43b;
+	--blue: #3d5afe;
+	--green: #19b46b;
+	--pink: #ff8fc8;
+	--on-accent: #fffdf8;
+	--grid: rgba(21, 19, 18, 0.06);
+	--shadow: 4px 4px 0 var(--ink);
+	--shadow-lg: 7px 7px 0 var(--ink);
+	--radius: 16px;
+	--font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+	--font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--paper: #141210;
+		--card: #1e1b18;
+		--ink: #f5efe3;
+		--muted: #b3ab9d;
+		--faint: #7f786d;
+		--accent: #ff6a3d;
+		--blue: #7b8cff;
+		--green: #38d48a;
+		--on-accent: #141210;
+		--grid: rgba(245, 239, 227, 0.05);
+		color-scheme: dark;
+	}
+}
+:root[data-theme='dark'] {
+	--paper: #141210;
+	--card: #1e1b18;
+	--ink: #f5efe3;
+	--muted: #b3ab9d;
+	--faint: #7f786d;
+	--accent: #ff6a3d;
+	--blue: #7b8cff;
+	--green: #38d48a;
+	--on-accent: #141210;
+	--grid: rgba(245, 239, 227, 0.05);
+	color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+html {
+	scroll-behavior: smooth;
+	-webkit-text-size-adjust: 100%;
+}
+body {
+	margin: 0;
+	background-color: var(--paper);
+	background-image:
+		linear-gradient(var(--grid) 1px, transparent 1px),
+		linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+	background-size: 32px 32px;
+	color: var(--ink);
+	font: 17px/1.65 var(--font-body);
+	-webkit-font-smoothing: antialiased;
+	overflow-x: hidden;
+}
+body.invert {
+	filter: invert(1) hue-rotate(180deg);
+}
+a {
+	color: inherit;
+}
+img {
+	max-width: 100%;
+}
+::selection {
+	background: var(--yellow);
+	color: #151312;
+}
+:focus-visible {
+	outline: 3px solid var(--blue);
+	outline-offset: 3px;
+	border-radius: 6px;
+}
+
+.wrap {
+	max-width: 1080px;
+	margin: 0 auto;
+	padding: 0 20px;
+}
+.narrow {
+	max-width: 760px;
+}
+
+h1,
+h2,
+h3 {
+	font-family: var(--font-display);
+	letter-spacing: -0.03em;
+	line-height: 1.05;
+	margin: 0;
+}
+p {
+	margin: 0 0 1em;
+}
+.muted {
+	color: var(--muted);
+}
+.mono {
+	font-family: var(--font-mono);
+}
+
+/* Section scaffolding */
+.section {
+	padding: 88px 0;
+	scroll-margin-top: 64px;
+}
+.kicker {
+	display: inline-block;
+	font: 600 13px/1 var(--font-mono);
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
+	background: var(--ink);
+	color: var(--paper);
+	padding: 8px 12px;
+	border-radius: 8px;
+	transform: rotate(-2deg);
+	margin-bottom: 18px;
+}
+.section-title {
+	font-size: clamp(36px, 6vw, 64px);
+	font-weight: 800;
+	margin-bottom: 28px;
+}
+.section-title em {
+	font-style: normal;
+	color: var(--accent);
+}
+
+/* Cards, buttons, stickers */
+.card {
+	background: var(--card);
+	border: 2px solid var(--ink);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+}
+.btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font: 700 15px/1 var(--font-body);
+	text-decoration: none;
+	color: var(--ink);
+	background: var(--card);
+	border: 2px solid var(--ink);
+	border-radius: 12px;
+	padding: 12px 18px;
+	box-shadow: var(--shadow);
+	cursor: pointer;
+	transition: transform 0.12s, box-shadow 0.12s;
+}
+.btn:hover {
+	transform: translate(-2px, -2px);
+	box-shadow: 6px 6px 0 var(--ink);
+}
+.btn:active {
+	transform: translate(3px, 3px);
+	box-shadow: 1px 1px 0 var(--ink);
+}
+.btn.primary {
+	background: var(--accent);
+	color: var(--on-accent);
+}
+.btn.yellow {
+	background: var(--yellow);
+	color: #151312;
+}
+.btn svg {
+	width: 18px;
+	height: 18px;
+}
+.sticker {
+	display: inline-block;
+	font: 800 14px/1.1 var(--font-display);
+	padding: 8px 12px;
+	border: 2px solid var(--ink);
+	border-radius: 999px;
+	background: var(--yellow);
+	color: #151312;
+	box-shadow: 3px 3px 0 var(--ink);
+	white-space: nowrap;
+}
+.chip {
+	display: inline-block;
+	font: 500 13px/1 var(--font-mono);
+	padding: 9px 12px;
+	border: 2px solid var(--ink);
+	border-radius: 10px;
+	background: var(--card);
+}
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+@media (max-width: 640px) {
+	body {
+		font-size: 16px;
+	}
+	.section {
+		padding: 64px 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+	}
+}

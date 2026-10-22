@@ -1,0 +1,228 @@
+<canvas class="swarm" data-swarm aria-hidden="true"></canvas>
+<div class="swarm-counter mono" data-swarm-counter aria-live="polite" hidden></div>
+
+<script>
+	type Agent = { x: number; y: number; vx: number; vy: number; hue: number };
+	type Ticket = { x: number; y: number; id: number; progress: number; done: number };
+
+	const canvas = document.querySelector<HTMLCanvasElement>('[data-swarm]');
+	const host = canvas?.parentElement;
+	const counter = document.querySelector<HTMLElement>('[data-swarm-counter]');
+
+	if (canvas && host && counter) {
+		const ctx = canvas.getContext('2d')!;
+		const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const BASE = 14;
+		const PER_LEVEL = 10;
+		let agents: Agent[] = [];
+		let tickets: Ticket[] = [];
+		let target: { x: number; y: number } | null = null;
+		let w = 0;
+		let h = 0;
+		let dpr = 1;
+		let closed = 0;
+		let nextId = 140 + Math.floor(Math.random() * 60);
+		let running = false;
+		let colors = { ink: '#151312', accent: '#ff4f1f', yellow: '#ffd43b', green: '#19b46b', card: '#fffdf8' };
+
+		const readColors = () => {
+			const cs = getComputedStyle(document.documentElement);
+			const v = (n: string) => cs.getPropertyValue(n).trim();
+			colors = { ink: v('--ink'), accent: v('--accent'), yellow: v('--yellow'), green: v('--green'), card: v('--card') };
+		};
+
+		const resize = () => {
+			const r = host.getBoundingClientRect();
+			dpr = Math.min(window.devicePixelRatio || 1, 2);
+			w = r.width;
+			h = r.height;
+			canvas.width = w * dpr;
+			canvas.height = h * dpr;
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		};
+
+		const spawn = (n: number) => {
+			for (let i = 0; i < n; i++) {
+				agents.push({
+					x: w * (0.55 + Math.random() * 0.4),
+					y: h * Math.random(),
+					vx: (Math.random() - 0.5) * 2,
+					vy: (Math.random() - 0.5) * 2,
+					hue: Math.random(),
+				});
+			}
+		};
+
+		const setCount = (n: number) => {
+			if (n > agents.length) spawn(n - agents.length);
+			else agents.length = n;
+		};
+
+		const step = () => {
+			const t = performance.now() / 1000;
+			const ticket = tickets.find((k) => !k.done);
+			for (const a of agents) {
+				let tx: number;
+				let ty: number;
+				if (ticket) {
+					tx = ticket.x;
+					ty = ticket.y;
+				} else if (target) {
+					tx = target.x;
+					ty = target.y;
+				} else {
+					// Idle: drift in a lazy loop on the right side of the hero.
+					tx = w * 0.75 + Math.cos(t * 0.4 + a.hue * 6.28) * w * 0.15;
+					ty = h * 0.5 + Math.sin(t * 0.6 + a.hue * 6.28) * h * 0.3;
+				}
+				const dx = tx - a.x;
+				const dy = ty - a.y;
+				const d = Math.hypot(dx, dy) || 1;
+				const pull = ticket ? 0.22 : 0.12;
+				a.vx += (dx / d) * pull + (Math.random() - 0.5) * 0.35;
+				a.vy += (dy / d) * pull + (Math.random() - 0.5) * 0.35;
+				// Keep a little personal space when crowding a target.
+				if (d < 26) {
+					a.vx -= (dx / d) * 0.5;
+					a.vy -= (dy / d) * 0.5;
+				}
+				const sp = Math.hypot(a.vx, a.vy);
+				const max = ticket ? 5 : 3.4;
+				if (sp > max) {
+					a.vx = (a.vx / sp) * max;
+					a.vy = (a.vy / sp) * max;
+				}
+				a.vx *= 0.97;
+				a.vy *= 0.97;
+				a.x += a.vx;
+				a.y += a.vy;
+			}
+
+			if (ticket) {
+				const near = agents.filter((a) => Math.hypot(a.x - ticket.x, a.y - ticket.y) < 44).length;
+				ticket.progress += near * 0.0016;
+				if (ticket.progress >= 1) {
+					ticket.done = performance.now();
+					closed++;
+					counter.hidden = false;
+					counter.textContent = `INC-${ticket.id} resolved ✓ · ${closed} closed by agents`;
+				}
+			}
+			tickets = tickets.filter((k) => !k.done || performance.now() - k.done < 900);
+		};
+
+		const draw = () => {
+			ctx.clearRect(0, 0, w, h);
+			for (const k of tickets) {
+				const age = k.done ? (performance.now() - k.done) / 900 : 0;
+				ctx.save();
+				ctx.globalAlpha = 1 - age;
+				ctx.translate(k.x, k.y);
+				ctx.rotate(-0.05);
+				ctx.fillStyle = k.done ? colors.green : colors.card;
+				ctx.strokeStyle = colors.ink;
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				ctx.roundRect(-38, -16 - age * 20, 76, 32, 7);
+				ctx.fill();
+				ctx.stroke();
+				if (!k.done) {
+					ctx.fillStyle = colors.yellow;
+					ctx.fillRect(-36, 8, 72 * Math.min(1, k.progress), 5);
+				}
+				ctx.fillStyle = colors.ink;
+				ctx.font = '600 12px "JetBrains Mono", monospace';
+				ctx.textAlign = 'center';
+				ctx.fillText(k.done ? '✓ fixed' : `INC-${k.id}`, 0, 4 - age * 20);
+				ctx.restore();
+			}
+			for (const a of agents) {
+				const ang = Math.atan2(a.vy, a.vx);
+				ctx.save();
+				ctx.translate(a.x, a.y);
+				ctx.rotate(ang);
+				ctx.fillStyle = a.hue > 0.7 ? colors.yellow : colors.accent;
+				ctx.strokeStyle = colors.ink;
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.moveTo(8, 0);
+				ctx.lineTo(-6, 5);
+				ctx.lineTo(-3, 0);
+				ctx.lineTo(-6, -5);
+				ctx.closePath();
+				ctx.fill();
+				ctx.stroke();
+				ctx.restore();
+			}
+		};
+
+		const loop = () => {
+			if (!running) return;
+			step();
+			draw();
+			requestAnimationFrame(loop);
+		};
+
+		const start = () => {
+			if (running || reduced) return;
+			running = true;
+			requestAnimationFrame(loop);
+		};
+		const stop = () => (running = false);
+
+		const local = (e: PointerEvent | MouseEvent) => {
+			const r = host.getBoundingClientRect();
+			return { x: e.clientX - r.left, y: e.clientY - r.top };
+		};
+
+		host.addEventListener('pointermove', (e) => {
+			if (e.pointerType === 'mouse') target = local(e);
+		});
+		host.addEventListener('pointerleave', () => (target = null));
+		host.addEventListener('click', (e) => {
+			const el = e.target as HTMLElement;
+			if (el.closest('a, button, input, label, .card, .bio, h1, img')) return;
+			if (tickets.filter((k) => !k.done).length >= 4) return;
+			tickets.push({ ...local(e), id: nextId++, progress: 0, done: 0 });
+		});
+
+		window.addEventListener('hype:level', (e) => {
+			setCount(BASE + PER_LEVEL * (e as CustomEvent<{ level: number }>).detail.level);
+		});
+
+		new ResizeObserver(resize).observe(host);
+		new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+		matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+		new IntersectionObserver(([entry]) => (entry.isIntersecting ? start() : stop())).observe(host);
+
+		resize();
+		readColors();
+		// The hype slider may have rendered first; pick up its level from the hero.
+		setCount(BASE + PER_LEVEL * Number(host.dataset.level ?? 2));
+		if (reduced) draw();
+	}
+</script>
+
+<style>
+	.swarm {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		z-index: 1;
+		pointer-events: none;
+	}
+	.swarm-counter {
+		position: absolute;
+		right: 20px;
+		top: 18px;
+		z-index: 3;
+		font-size: 12px;
+		background: var(--green);
+		color: #151312;
+		border: 2px solid var(--ink);
+		border-radius: 8px;
+		padding: 6px 10px;
+		box-shadow: 2px 2px 0 var(--ink);
+	}
+</style>

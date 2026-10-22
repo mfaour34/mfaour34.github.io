@@ -1,0 +1,646 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import HypeHero from '../components/HypeHero.astro';
+import Dispatch from '../components/Dispatch.astro';
+import PostCard from '../components/PostCard.astro';
+import { CAREER_START, EMAIL, GITHUB, LINKEDIN, yearsSince } from '../consts';
+
+const years = yearsSince(CAREER_START);
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+	.slice(0, 3);
+
+const jobs = [
+	{
+		role: 'Senior Software Engineer',
+		org: 'FINN',
+		logo: '/assets/finn.png',
+		when: 'Aug 2022 – now',
+		where: 'Operations · Move team · Munich',
+		current: true,
+		points: [
+			'Own the <b>backend platform for vehicle delivery and logistics</b>, built on TypeScript and AWS serverless.',
+			'Designed and shipped vehicle moves between sites and <b>condition-based routing of returned cars</b>. These automated workflows replaced manual coordination. (Yes, that\'s the game below.)',
+			'Redesigned the <b>capacity planning model</b> for physical sites. It ended booking conflicts and the rework they caused downstream.',
+			'Led multi-site consolidation and data migrations, and retired legacy infrastructure without disrupting live operations.',
+			'Built ops tooling and centralized observability across serverless services, <b>cutting MTTR for critical incidents by 50%</b>.',
+			'Moved core data and workflows from a no-code platform to Postgres, <b>improving query performance and data integrity by 30%</b>.',
+			'Drove the team\'s early adoption of <b>agentic AI workflows</b>. I built agent tooling and MCP integrations that automate incident triage and recurring firefighting.',
+		],
+	},
+	{
+		role: 'Backend Developer (Contract)',
+		org: 'JumpCloud',
+		logo: '/assets/jumpcloud.png',
+		when: 'Jun – Aug 2022',
+		where: 'Denver, USA · Remote',
+		points: [
+			'Built CI/CD pipelines for microservices, so releases were faster, more reliable and needed less manual work.',
+			'Led the switch from RabbitMQ to <b>gRPC</b> as the main protocol between services, which cut message processing times.',
+			'Guided the migration of legacy backend services to a modern schema and structure.',
+		],
+	},
+	{
+		role: 'Backend Developer',
+		org: 'JOIN',
+		logo: '/assets/join.png',
+		when: 'Jan – Jun 2022',
+		where: 'Berlin, Germany · Remote',
+		points: [
+			'Built and deployed secure, scalable backend APIs in Node.js.',
+			'Integrated gRPC services into the wider product, working closely with the frontend and backend teams.',
+			'Wrote unit and integration tests for the gRPC services.',
+		],
+	},
+	{
+		role: 'Software Engineer',
+		org: 'Presentail',
+		logo: '/assets/presentail.png',
+		when: 'Aug 2020 – Jan 2022',
+		where: 'Beirut, Lebanon',
+		points: [
+			'Designed and built cloud applications on AWS (Lambda, S3, DynamoDB, API Gateway), <b>raising system operating efficiency 7.4×</b>.',
+			'Built MySQL-backed microservices and tuned them for high volume using performance testing tools.',
+			'Improved overall throughput by <b>30%</b> with caching and database optimization.',
+		],
+	},
+];
+
+const principles = [
+	{ icon: '📝', title: 'Plan first', text: 'I draft PRDs and technical specs with agents, then refine them and sign them off myself before any code is written.', c: 'yellow' },
+	{ icon: '🎻', title: 'Orchestrate', text: 'A conductor agent runs parallel sessions through a graph of dependent tickets. I direct the work and own the outcome.', c: 'blue' },
+	{ icon: '🔍', title: 'Review hard', text: "I review every change thoroughly before it merges. If it isn't production-ready, it doesn't ship.", c: 'green' },
+	{ icon: '🚒', title: 'Firefight fast', text: 'Agents dig through logs, trace the bug and draft a fix, so incidents get closed sooner.', c: 'accent' },
+];
+
+const projects = [
+	{ name: 'hub', lang: 'C#', href: `${GITHUB}/hub`, text: 'A single tray app for your gaming mouse, headset and audio channels, with its own audio engine. It replaces Synapse, G HUB and Sonar.', emoji: '🎧' },
+	{ name: 'claude-workstreams', lang: 'Shell', href: `${GITHUB}/claude-workstreams`, text: 'Git-backed context for Claude Code that persists between sessions: workstreams, sourced facts, dated decisions and safe parallel sessions.', emoji: '🧠' },
+	{ name: 'conductor', lang: 'Shell', href: `${GITHUB}/conductor-orchestration`, text: 'An orchestrator agent that runs parallel coding-agent sessions through a graph of dependent tickets.', emoji: '🎻' },
+];
+
+const skills = {
+	'Backend & Cloud': ['TypeScript', 'Node.js', 'Python', 'AWS Lambda', 'S3', 'DynamoDB', 'API Gateway', 'Postgres', 'MySQL', 'gRPC', 'REST', 'Event-driven', 'CI/CD'],
+	'AI & Automation': ['Agentic workflows', 'MCP servers', 'Claude Code', 'LLM tooling', 'Retool', 'Make'],
+};
+---
+
+<Base>
+	<HypeHero />
+
+	<section class="section" id="about">
+		<div class="wrap about">
+			<div>
+				<span class="kicker">About</span>
+				<h2 class="section-title">I build the systems that <em>move things</em>.</h2>
+				<p class="lead">
+					I'm a backend engineer with a TypeScript and Node.js core. Most of my work is event-driven, serverless systems on AWS,
+					and the data migrations needed to keep them healthy as a business grows. On FINN's Move team I own the platform for
+					capacity planning, moves between sites, relocations and driver coordination.
+				</p>
+				<p class="muted">
+					Before FINN I worked on gRPC microservices at JumpCloud and JOIN, and before that I built cloud systems on AWS at
+					Presentail in Beirut. Outside work I'm a car nerd, I run on coffee, and I spend my spare time building tools that make
+					agents better colleagues.
+				</p>
+			</div>
+			<div class="stats">
+				<div class="stat card" style="--tilt:-2deg"><b><span class="yrs">{years}</span> yrs</b><span>building backend &amp; serverless systems</span></div>
+				<div class="stat card stat--yellow" style="--tilt:1.5deg"><b>−50%</b><span>time to resolve critical incidents at FINN</span></div>
+				<div class="stat card" style="--tilt:-1deg"><b>7.4×</b><span>system efficiency on AWS at Presentail</span></div>
+				<div class="stat card stat--accent" style="--tilt:2deg"><b>4</b><span>companies, 3 countries, 1 coffee habit</span></div>
+			</div>
+		</div>
+	</section>
+
+	<section class="section band" id="approach">
+		<div class="wrap">
+			<span class="kicker">How I work</span>
+			<h2 class="section-title">Agents write a lot of code.<br /><em>I own the result.</em></h2>
+			<div class="principles">
+				{
+					principles.map((p) => (
+						<div class={`principle card principle--${p.c}`}>
+							<span class="principle-icon" aria-hidden="true">{p.icon}</span>
+							<h3>{p.title}</h3>
+							<p>{p.text}</p>
+						</div>
+					))
+				}
+			</div>
+		</div>
+	</section>
+
+	<section class="section" id="work">
+		<div class="wrap">
+			<span class="kicker">Experience</span>
+			<h2 class="section-title">Where I've <em>shipped</em>.</h2>
+			<ol class="jobs">
+				{
+					jobs.map((j) => (
+						<li class:list={['job', { current: j.current }]}>
+							<img class="job-logo" src={j.logo} alt={`${j.org} logo`} width="56" height="56" loading="lazy" />
+							<div class="job-body card">
+								<div class="job-head">
+									<h3>
+										{j.role} <span class="org">@ {j.org}</span>
+									</h3>
+									<span class="when mono">{j.when}</span>
+								</div>
+								<p class="where muted">{j.where}</p>
+								<ul>
+									{j.points.map((pt) => (
+										<li set:html={pt} />
+									))}
+								</ul>
+							</div>
+						</li>
+					))
+				}
+			</ol>
+
+			<div class="skills">
+				{
+					Object.entries(skills).map(([group, items]) => (
+						<div class="skill-group">
+							<h3>{group}</h3>
+							<div class="chips">
+								{items.map((s) => (
+									<span class="chip">{s}</span>
+								))}
+							</div>
+						</div>
+					))
+				}
+			</div>
+
+			<div class="edu card">
+				<span class="edu-logo"><img src="/assets/bau.png" alt="Beirut Arab University logo" width="145" height="40" loading="lazy" /></span>
+				<div>
+					<h3>BSc in Computer Science</h3>
+					<p class="muted">Beirut Arab University · Graduated 2021 · <b class="gpa">GPA 3.8 / 4.0</b></p>
+				</div>
+				<span class="sticker edu-sticker">🎓 class of '21</span>
+			</div>
+		</div>
+	</section>
+
+	<section class="section band" id="play">
+		<div class="wrap">
+			<span class="kicker">Play</span>
+			<h2 class="section-title">Can you do my <em>job</em>?</h2>
+			<p class="lead play-lead">
+				At FINN I built condition-based routing for returned cars. Here's the arcade version. Dirty cars go to the wash, damaged
+				ones to the workshop, low batteries to charging, and ready cars back out to customers. Don't let the lot overflow.
+			</p>
+			<Dispatch />
+		</div>
+	</section>
+
+	<section class="section" id="projects">
+		<div class="wrap">
+			<span class="kicker">Side projects</span>
+			<h2 class="section-title">Things I build <em>for fun</em>.</h2>
+			<div class="projects">
+				{
+					projects.map((p) => (
+						<a class="project card" href={p.href} target="_blank" rel="noopener">
+							<span class="project-emoji" aria-hidden="true">{p.emoji}</span>
+							<h3>
+								{p.name} <span class="lang mono">{p.lang}</span>
+							</h3>
+							<p>{p.text}</p>
+							<span class="arrow" aria-hidden="true">↗</span>
+						</a>
+					))
+				}
+			</div>
+		</div>
+	</section>
+
+	{
+		posts.length > 0 && (
+			<section class="section band" id="writing">
+				<div class="wrap">
+					<span class="kicker">Writing</span>
+					<h2 class="section-title">
+						From the <em>blog</em>.
+					</h2>
+					<div class="posts">
+						{posts.map((p) => (
+							<PostCard post={p} />
+						))}
+					</div>
+					<p class="all-posts">
+						<a class="btn" href="/blog/">
+							All posts →
+						</a>
+					</p>
+				</div>
+			</section>
+		)
+	}
+
+	<section class="section" id="contact">
+		<div class="wrap">
+			<div class="contact card">
+				<span class="kicker">Contact</span>
+				<h2 class="section-title">Let's <em>talk</em>.</h2>
+				<p class="lead">
+					Backend architecture, logistics systems, building with agents, or just cars. Email is the fastest way to reach me.
+				</p>
+				<div class="cta">
+					<a class="btn primary" href={`mailto:${EMAIL}`}>{EMAIL}</a>
+					<a class="btn" href={LINKEDIN} target="_blank" rel="me noopener">LinkedIn</a>
+					<a class="btn" href={GITHUB} target="_blank" rel="me noopener">GitHub</a>
+				</div>
+				<span class="contact-sticker sticker" aria-hidden="true">say hi 👋</span>
+			</div>
+		</div>
+	</section>
+</Base>
+
+<style>
+	.lead {
+		font-size: clamp(18px, 2vw, 21px);
+		line-height: 1.6;
+	}
+	.band {
+		background: var(--card);
+		border-top: 2px solid var(--ink);
+		border-bottom: 2px solid var(--ink);
+	}
+
+	/* About */
+	.about {
+		display: grid;
+		grid-template-columns: 1.3fr 1fr;
+		gap: 48px;
+		align-items: center;
+	}
+	.stats {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 16px;
+	}
+	.stat {
+		padding: 20px 18px;
+		transform: rotate(var(--tilt));
+		transition: transform 0.2s;
+	}
+	.stat:hover {
+		transform: rotate(0) scale(1.04);
+	}
+	.stat b {
+		display: block;
+		font: 800 clamp(34px, 4vw, 46px) / 1 var(--font-display);
+		letter-spacing: -0.04em;
+		margin-bottom: 8px;
+	}
+	.stat span {
+		font-size: 14px;
+		color: var(--muted);
+		line-height: 1.35;
+		display: block;
+	}
+	.stat--yellow {
+		background: var(--yellow);
+		color: #151312;
+	}
+	.stat--yellow span,
+	.stat--accent span {
+		color: inherit;
+		opacity: 0.85;
+	}
+	.stat--accent {
+		background: var(--accent);
+		color: var(--on-accent);
+	}
+
+	/* Principles */
+	.principles {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 18px;
+	}
+	.principle {
+		padding: 22px 20px;
+		position: relative;
+		transition: transform 0.15s, box-shadow 0.15s;
+	}
+	.principle:hover {
+		transform: translate(-3px, -3px);
+		box-shadow: var(--shadow-lg);
+	}
+	.principle-icon {
+		display: grid;
+		place-items: center;
+		width: 52px;
+		height: 52px;
+		font-size: 26px;
+		border: 2px solid var(--ink);
+		border-radius: 14px;
+		margin-bottom: 16px;
+		background: var(--c);
+	}
+	.principle--yellow {
+		--c: var(--yellow);
+	}
+	.principle--blue {
+		--c: var(--blue);
+	}
+	.principle--green {
+		--c: var(--green);
+	}
+	.principle--accent {
+		--c: var(--accent);
+	}
+	.principle h3 {
+		font-size: 22px;
+		margin-bottom: 8px;
+	}
+	.principle p {
+		margin: 0;
+		font-size: 15px;
+		color: var(--muted);
+	}
+
+	/* Jobs */
+	.jobs {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 56px;
+		display: grid;
+		gap: 22px;
+	}
+	.job {
+		display: grid;
+		grid-template-columns: 56px 1fr;
+		gap: 18px;
+		position: relative;
+	}
+	.job:not(:last-child)::before {
+		content: '';
+		position: absolute;
+		left: 27px;
+		top: 64px;
+		bottom: -22px;
+		border-left: 2px dashed var(--ink);
+		opacity: 0.4;
+	}
+	.job-logo {
+		width: 56px;
+		height: 56px;
+		border-radius: 14px;
+		background: #fff;
+		border: 2px solid var(--ink);
+		object-fit: contain;
+		box-shadow: 3px 3px 0 var(--ink);
+	}
+	.job.current .job-logo {
+		box-shadow: 3px 3px 0 var(--accent);
+	}
+	.job-body {
+		padding: 20px 22px;
+	}
+	.job.current .job-body {
+		border-color: var(--ink);
+		box-shadow: 5px 5px 0 var(--accent);
+	}
+	.job-head {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 6px 16px;
+		align-items: baseline;
+	}
+	.job-head h3 {
+		font-size: 22px;
+	}
+	.org {
+		color: var(--accent);
+	}
+	.when {
+		font-size: 13px;
+		background: var(--paper);
+		border: 1.5px solid var(--ink);
+		border-radius: 8px;
+		padding: 4px 8px;
+		white-space: nowrap;
+	}
+	.where {
+		margin: 6px 0 12px;
+		font-size: 15px;
+	}
+	.job ul {
+		margin: 0;
+		padding-left: 20px;
+	}
+	.job ul li {
+		margin-bottom: 7px;
+		font-size: 15.5px;
+	}
+	.job ul li::marker {
+		color: var(--accent);
+	}
+	.job ul :global(b) {
+		background: linear-gradient(transparent 60%, color-mix(in srgb, var(--yellow) 70%, transparent) 60%);
+	}
+
+	.skills {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 28px;
+		margin-bottom: 40px;
+	}
+	.skill-group h3 {
+		font-size: 20px;
+		margin-bottom: 14px;
+	}
+
+	.edu {
+		position: relative;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 18px 24px;
+		padding: 22px;
+	}
+	.edu h3 {
+		font-size: 22px;
+		margin-bottom: 4px;
+	}
+	.edu p {
+		margin: 0;
+	}
+	.edu-logo {
+		background: #14305a;
+		border: 2px solid var(--ink);
+		border-radius: 12px;
+		padding: 12px 16px;
+		display: inline-flex;
+	}
+	.edu-logo img {
+		height: 40px;
+		width: auto;
+		display: block;
+	}
+	.gpa {
+		color: var(--ink);
+	}
+	.edu-sticker {
+		position: absolute;
+		right: 18px;
+		top: -16px;
+		transform: rotate(6deg);
+	}
+
+	.play-lead {
+		max-width: 720px;
+		margin-bottom: 28px;
+	}
+
+	/* Projects */
+	.projects {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 18px;
+	}
+	.project {
+		position: relative;
+		display: block;
+		padding: 22px;
+		text-decoration: none;
+		transition: transform 0.15s, box-shadow 0.15s;
+	}
+	.project:hover {
+		transform: translate(-3px, -3px) rotate(-0.5deg);
+		box-shadow: var(--shadow-lg);
+	}
+	.project-emoji {
+		font-size: 36px;
+		display: block;
+		margin-bottom: 10px;
+	}
+	.project h3 {
+		font-size: 22px;
+		margin-bottom: 8px;
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+	.lang {
+		font-size: 12px;
+		font-weight: 500;
+		letter-spacing: 0;
+		color: var(--muted);
+	}
+	.project p {
+		margin: 0;
+		color: var(--muted);
+		font-size: 15px;
+	}
+	.arrow {
+		position: absolute;
+		right: 18px;
+		top: 16px;
+		font-size: 22px;
+		transition: transform 0.15s;
+	}
+	.project:hover .arrow {
+		transform: translate(3px, -3px);
+		color: var(--accent);
+	}
+
+	.posts {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 18px;
+	}
+	.all-posts {
+		margin-top: 28px;
+	}
+
+	/* Contact */
+	.contact {
+		position: relative;
+		padding: clamp(28px, 5vw, 56px);
+		background: var(--yellow);
+		color: #151312;
+		box-shadow: var(--shadow-lg);
+	}
+	.contact .kicker {
+		background: #151312;
+		color: var(--yellow);
+	}
+	.contact .section-title em {
+		color: #151312;
+		text-decoration: underline wavy var(--accent) 4px;
+		text-underline-offset: 8px;
+	}
+	.contact .btn {
+		border-color: #151312;
+		box-shadow: 4px 4px 0 #151312;
+		background: #fffdf8;
+		color: #151312;
+	}
+	.contact .btn.primary {
+		background: #151312;
+		color: #ffd43b;
+	}
+	.cta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		margin-top: 8px;
+	}
+	.contact-sticker {
+		position: absolute;
+		top: -18px;
+		right: 28px;
+		background: var(--accent);
+		color: #fffdf8;
+		transform: rotate(8deg);
+	}
+
+	@media (max-width: 900px) {
+		.about {
+			grid-template-columns: 1fr;
+		}
+		.principles {
+			grid-template-columns: 1fr 1fr;
+		}
+		.projects,
+		.posts {
+			grid-template-columns: 1fr;
+		}
+	}
+	@media (max-width: 600px) {
+		.principles,
+		.skills {
+			grid-template-columns: 1fr;
+		}
+		.job {
+			grid-template-columns: 1fr;
+		}
+		.job:not(:last-child)::before {
+			display: none;
+		}
+		.job-logo {
+			width: 48px;
+			height: 48px;
+			margin-bottom: -6px;
+		}
+		.edu-sticker {
+			display: none;
+		}
+	}
+</style>
+
+<script>
+	const now = new Date();
+	const y = now.getFullYear() - 2020 - (now.getMonth() < 7 ? 1 : 0);
+	document.querySelectorAll('#about .yrs').forEach((el) => (el.textContent = String(y)));
+</script>
