@@ -10,6 +10,7 @@
   <meta property="og:title" content="Mohammed Faour · Senior Software Engineer">
   <meta property="og:description" content="Backend and serverless systems on AWS. Currently building the logistics platform behind vehicle deliveries at FINN, Munich.">
   <meta property="og:url" content="https://mfaour34.github.io/">
+  <meta property="og:image" content="https://mfaour34.github.io/assets/avatar.png">
   <meta name="twitter:card" content="summary">
   <link rel="canonical" href="https://mfaour34.github.io/">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236d5bff'/%3E%3Ctext x='32' y='42' font-family='system-ui,sans-serif' font-size='28' font-weight='700' fill='white' text-anchor='middle'%3EMF%3C/text%3E%3C/svg%3E">
@@ -160,17 +161,36 @@
     @media (max-width: 560px) { .principles { grid-template-columns: 1fr; } }
 
     /* Timeline */
-    .job { position: relative; padding-left: 26px; margin-bottom: 34px; }
+    .job { position: relative; padding-left: 62px; margin-bottom: 34px; }
     .job:last-child { margin-bottom: 0; }
     .job::before {
-      content: ""; position: absolute; left: 4px; top: 10px; bottom: -34px; width: 2px; background: var(--line);
+      content: ""; position: absolute; left: 21px; top: 48px; bottom: -30px; width: 2px; background: var(--line);
     }
     .job:last-child::before { display: none; }
-    .job::after {
-      content: ""; position: absolute; left: 0; top: 6px; width: 10px; height: 10px; border-radius: 50%;
-      background: var(--bg); border: 2px solid var(--accent);
+    .logo {
+      position: absolute; left: 0; top: 0; width: 44px; height: 44px; border-radius: 12px;
+      background: #fff; border: 1px solid var(--line); object-fit: contain; box-shadow: var(--shadow);
     }
-    .job.current::after { background: var(--accent); }
+    .job.current .logo { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+    @media (max-width: 560px) {
+      .job { padding-left: 54px; }
+      .logo { width: 38px; height: 38px; border-radius: 10px; }
+      .job::before { left: 18px; top: 42px; }
+    }
+
+    /* Hero avatar */
+    .hero-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .avatar {
+      width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--surface); box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    /* Education */
+    .edu { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    .edu-logo {
+      background: #14305a; border-radius: 12px; padding: 12px 16px; display: inline-flex;
+    }
+    .edu-logo img { height: 40px; width: auto; display: block; }
     .job-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; }
     .job h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
     .job .org { color: var(--accent); font-weight: 600; }
@@ -237,7 +257,10 @@
 
   <main class="wrap" id="top">
     <header class="hero">
-      <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Munich, Germany · Senior Software Engineer at FINN</span>
+      <div class="hero-top">
+        <img class="avatar" src="assets/avatar.png" width="64" height="64" alt="Photo of Mohammed Faour">
+        <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Munich, Germany · Senior Software Engineer at FINN</span>
+      </div>
       <h1>Hi, I'm Mohammed.<br>I build the <span class="accent">backend systems</span> that move things.</h1>
       <p class="lede">
         I've spent <strong>6 years</strong> building backend and serverless systems on AWS. Right now I own the platform behind
@@ -303,6 +326,7 @@
       <h2>Experience</h2>
 
       <article class="job current">
+        <img class="logo" src="assets/finn.png" alt="FINN logo" width="44" height="44" loading="lazy">
         <div class="job-head">
           <h3>Senior Software Engineer · <span class="org">FINN</span></h3>
           <span class="when">Aug 2022 – Present</span>
@@ -320,6 +344,7 @@
       </article>
 
       <article class="job">
+        <img class="logo" src="assets/jumpcloud.png" alt="JumpCloud logo" width="44" height="44" loading="lazy">
         <div class="job-head">
           <h3>Backend Developer (Contract) · <span class="org">JumpCloud</span></h3>
           <span class="when">Jun 2022 – Aug 2022</span>
@@ -333,8 +358,9 @@
       </article>
 
       <article class="job">
+        <img class="logo" src="assets/join.png" alt="JOIN logo" width="44" height="44" loading="lazy">
         <div class="job-head">
-          <h3>Backend Developer · <span class="org">JOIN</span></h3>
+          <h3>Backend Developer ·<span class="org">JOIN</span></h3>
           <span class="when">Jan 2022 – Jun 2022</span>
         </div>
         <div class="where">Berlin, Germany · Remote</div>
@@ -346,8 +372,9 @@
       </article>
 
       <article class="job">
+        <img class="logo" src="assets/presentail.png" alt="Presentail logo" width="44" height="44" loading="lazy">
         <div class="job-head">
-          <h3>Software Engineer · <span class="org">Presentail</span></h3>
+          <h3>Software Engineer ·<span class="org">Presentail</span></h3>
           <span class="when">Aug 2020 – Jan 2022</span>
         </div>
         <div class="where">Beirut, Lebanon</div>
@@ -403,7 +430,10 @@
 
     <section id="education">
       <h2>Education</h2>
-      <p class="edu"><b>BSc in Computer Science</b> · Beirut Arab University<br><span class="muted">Graduated 2021 · GPA 3.8</span></p>
+      <div class="edu">
+        <span class="edu-logo"><img src="assets/bau.png" alt="Beirut Arab University logo" width="145" height="40" loading="lazy"></span>
+        <p style="margin:0"><b>BSc in Computer Science</b> · Beirut Arab University<br><span class="muted">Graduated 2021 · GPA 3.8</span></p>
+      </div>
     </section>
 
     <section id="contact">
