@@ -1,14 +1,18 @@
 ---
-const routes = [
-	{ key: 'wash', icon: '🧽', label: 'Car wash', hint: 'dirty' },
-	{ key: 'shop', icon: '🔧', label: 'Workshop', hint: 'damaged' },
-	{ key: 'charge', icon: '🔋', label: 'Charging', hint: 'low battery' },
-	{ key: 'deliver', icon: '🚚', label: 'Next delivery', hint: 'ready to go' },
+const bays = [
+	{ key: 'wash', icon: '🧽', label: 'Car wash', hint: 'fast · 1 bay', slots: 1 },
+	{ key: 'shop', icon: '🔧', label: 'Workshop', hint: 'slow · 1 bay', slots: 1 },
+	{ key: 'charge', icon: '🔋', label: 'Charging', hint: 'medium · 2 bays', slots: 2 },
+	{ key: 'deliver', icon: '🚚', label: 'Deliver', hint: 'ready cars only', slots: 0 },
 ];
 ---
 
 <div class="dispatch card" data-dispatch>
 	<div class="hud">
+		<span class="clock">
+			<b data-clock>08:00</b>
+			<span class="shift-bar" aria-hidden="true"><span data-shift-fill></span></span>
+		</span>
 		<span>Score <b data-score>0</b></span>
 		<span>Combo <b data-combo>×1</b></span>
 		<span class="lives" data-lives aria-label="Lives">❤️❤️❤️</span>
@@ -22,56 +26,103 @@ const routes = [
 		</div>
 		<div class="routes" role="group" aria-label="Destinations">
 			{
-				routes.map((r, i) => (
-					<button class="route" type="button" data-route={r.key}>
+				bays.map((b, i) => (
+					<button class:list={['route', { deliver: b.key === 'deliver' }]} type="button" data-route={b.key}>
 						<span class="route-key mono">{i + 1}</span>
-						<span class="route-icon" aria-hidden="true">{r.icon}</span>
-						<span class="route-label">{r.label}</span>
-						<span class="route-hint mono">{r.hint}</span>
+						<span class="route-icon" aria-hidden="true">{b.icon}</span>
+						<span class="route-label">{b.label}</span>
+						<span class="route-hint mono">{b.hint}</span>
+						{b.slots > 0 && (
+							<span class="slots" data-slots>
+								{Array.from({ length: b.slots }, () => (
+									<span class="slot">
+										<span class="slot-fill" />
+									</span>
+								))}
+							</span>
+						)}
 					</button>
 				))
 			}
 		</div>
 	</div>
 
+	<div class="banner" data-banner hidden></div>
+
 	<div class="overlay" data-overlay>
 		<div class="overlay-box">
 			<h3 data-overlay-title>Dispatch</h3>
-			<p data-overlay-text>
-				Returned cars pile up in the lot. Route each one by its condition before its timer runs out. Click a car to select it (the oldest is
-				selected by default), then pick a destination, or press <kbd>1</kbd>–<kbd>4</kbd>.
-			</p>
+			<div data-overlay-body>
+				<p>
+					You run the return lot for one shift, <b>08:00 to 18:00</b>. Each car shows the jobs it needs. Send it through every bay it
+					needs, in any order, then <b>deliver</b> it. Bays take time and have limited slots, so plan around the busy ones.
+				</p>
+				<p>
+					Click a car, then a bay. Or use <kbd>↑</kbd><kbd>↓</kbd> and <kbd>1</kbd>–<kbd>4</kbd>. A car left waiting too long, or
+					a full lot, costs a ❤️. Survive the lunch and evening rush.
+				</p>
+			</div>
 			<button class="btn primary" type="button" data-start>Start shift ▶</button>
 		</div>
 	</div>
 </div>
 
 <script>
-	type Kind = 'wash' | 'shop' | 'charge' | 'deliver';
-	type Car = { id: number; kind: Kind; plate: string; color: string; born: number; ttl: number; el: HTMLLIElement };
+	type Job = 'wash' | 'shop' | 'charge';
+	type Kind = Job | 'deliver';
+	type Car = {
+		id: number;
+		jobs: Job[];
+		total: number;
+		vip: boolean;
+		plate: string;
+		patience: number;
+		max: number;
+		el: HTMLLIElement;
+	};
+	type Bay = { kind: Job; slots: { car: Car; left: number }[]; size: number; time: number; el: HTMLElement };
 
-	const KINDS: Record<Kind, { badge: string; label: string }> = {
+	const JOBS: Record<Job, { badge: string; label: string }> = {
 		wash: { badge: '🧽', label: 'Dirty' },
 		shop: { badge: '🔧', label: 'Damaged' },
 		charge: { badge: '🔋', label: 'Low battery' },
-		deliver: { badge: '✨', label: 'Ready' },
 	};
 	const ORDER: Kind[] = ['wash', 'shop', 'charge', 'deliver'];
 	const COLORS = ['#ff4f1f', '#3d5afe', '#19b46b', '#ffd43b', '#ff8fc8', '#151312', '#e8e2d6'];
 	const CAPACITY = 6;
+	const SHIFT_MS = 90_000;
+	const START_HOUR = 8;
+	const HOURS = 10;
+	const BAY_TIME: Record<Job, number> = { wash: 1500, shop: 3400, charge: 2800 };
+	const EVENTS = [
+		{ at: 11, text: '🍔 Lunch rush!' },
+		{ at: 13, text: 'Rush over. Breathe.' },
+		{ at: 16, text: '🌆 Evening rush!' },
+		{ at: 17.5, text: '⏰ 30 minutes to closing' },
+	];
+	const STARS = [1200, 2200, 3200];
 
 	const root = document.querySelector<HTMLElement>('[data-dispatch]');
 	if (root) {
 		const $ = <T extends HTMLElement>(s: string) => root.querySelector<T>(s)!;
 		const list = $<HTMLOListElement>('[data-cars]');
 		const overlay = $('[data-overlay]');
+		const banner = $('[data-banner]');
 		const scoreEl = $('[data-score]');
 		const comboEl = $('[data-combo]');
 		const livesEl = $('[data-lives]');
 		const bestEl = $('[data-best]');
+		const clockEl = $('[data-clock]');
+		const shiftFill = $('[data-shift-fill]');
 		const lotCount = $('[data-lot-count]');
 
-		let cars: Car[] = [];
+		const bays = {} as Record<Job, Bay>;
+		(['wash', 'shop', 'charge'] as Job[]).forEach((k) => {
+			const el = $(`[data-route="${k}"]`);
+			bays[k] = { kind: k, slots: [], size: el.querySelectorAll('.slot').length, time: BAY_TIME[k], el };
+		});
+
+		let lot: Car[] = [];
 		let selected: number | null = null;
 		let score = 0;
 		let combo = 1;
@@ -83,48 +134,31 @@ const routes = [
 		let lastTick = 0;
 		let spawnIn = 0;
 		let nextId = 1;
+		let eventIdx = 0;
+		let stats = { delivered: 0, missed: 0, mistakes: 0, bestCombo: 1 };
 
 		try {
-			best = Number(localStorage.getItem('dispatch-best') || 0);
+			best = Number(localStorage.getItem('dispatch-best-v2') || 0);
 		} catch (e) {}
 		bestEl.textContent = String(best);
 
+		const hour = () => START_HOUR + (HOURS * elapsed) / SHIFT_MS;
+		const fmtClock = (h: number) => {
+			const m = Math.floor((h % 1) * 60);
+			return `${String(Math.floor(h)).padStart(2, '0')}:${String(m - (m % 5)).padStart(2, '0')}`;
+		};
+		const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 		const plate = () => {
 			const L = 'ABCDEFGHKLMNPRSTVWXYZ';
-			const r = (n: number) => Array.from({ length: n }, () => L[Math.floor(Math.random() * L.length)]).join('');
-			return `M-${r(2)} ${100 + Math.floor(Math.random() * 900)}E`;
+			return `M-${pick([...L])}${pick([...L])} ${100 + Math.floor(Math.random() * 900)}E`;
 		};
 
 		const hud = () => {
 			scoreEl.textContent = String(score);
 			comboEl.textContent = `×${combo}`;
 			livesEl.textContent = '❤️'.repeat(lives) + '🖤'.repeat(3 - lives);
-			lotCount.textContent = `${cars.length}/${CAPACITY}`;
-		};
-
-		const select = (id: number | null) => {
-			selected = id ?? cars[0]?.id ?? null;
-			cars.forEach((c) => c.el.classList.toggle('selected', c.id === selected));
-		};
-
-		const remove = (car: Car, cls: string) => {
-			cars = cars.filter((c) => c !== car);
-			car.el.classList.remove('selected', 'urgent');
-			car.el.classList.add(cls);
-			setTimeout(() => car.el.remove(), 380);
-			if (selected === car.id) select(null);
-			hud();
-		};
-
-		const loseLife = (why: string) => {
-			lives--;
-			combo = 1;
-			root.classList.remove('hurt');
-			void root.offsetWidth;
-			root.classList.add('hurt');
-			toast(why, 'bad');
-			hud();
-			if (lives <= 0) end();
+			lotCount.textContent = `${lot.length}/${CAPACITY}`;
+			lotCount.classList.toggle('full', lot.length >= CAPACITY - 1);
 		};
 
 		const toast = (text: string, kind: 'good' | 'bad') => {
@@ -135,86 +169,213 @@ const routes = [
 			setTimeout(() => t.remove(), 900);
 		};
 
-		const spawn = (now: number) => {
-			if (cars.length >= CAPACITY) {
-				loseLife('Lot overflow! 🚧');
+		const showBanner = (text: string) => {
+			banner.textContent = text;
+			banner.hidden = false;
+			banner.classList.remove('show');
+			void banner.offsetWidth;
+			banner.classList.add('show');
+		};
+
+		const flash = (el: HTMLElement | null, cls: 'flash-good' | 'flash-bad') => {
+			if (!el) return;
+			el.classList.remove('flash-good', 'flash-bad');
+			void el.offsetWidth;
+			el.classList.add(cls);
+		};
+
+		const select = (id: number | null) => {
+			if (id === null || !lot.some((c) => c.id === id)) {
+				// Default to the car closest to running out of patience.
+				const urgent = [...lot].sort((a, b) => a.patience / a.max - b.patience / b.max)[0];
+				id = urgent?.id ?? null;
+			}
+			selected = id;
+			lot.forEach((c) => c.el.classList.toggle('selected', c.id === selected));
+		};
+
+		const step = (dir: 1 | -1) => {
+			if (!lot.length) return;
+			const i = lot.findIndex((c) => c.id === selected);
+			select(lot[(i + dir + lot.length) % lot.length].id);
+		};
+
+		const renderCar = (car: Car) => {
+			const ready = car.jobs.length === 0;
+			car.el.classList.toggle('ready', ready);
+			car.el.querySelector('.jobs')!.innerHTML = ready
+				? '<span class="job done">✨ Ready</span>'
+				: car.jobs.map((j) => `<span class="job" title="${JOBS[j].label}">${JOBS[j].badge}</span>`).join('');
+			const needs = ready ? 'ready to deliver' : car.jobs.map((j) => JOBS[j].label.toLowerCase()).join(', ');
+			car.el.querySelector('button')!.setAttribute('aria-label', `${car.vip ? 'VIP ' : ''}car ${car.plate}: ${needs}`);
+		};
+
+		const toLot = (car: Car) => {
+			lot.push(car);
+			car.el.classList.remove('out-good', 'out-bad', 'selected', 'urgent');
+			list.appendChild(car.el);
+			renderCar(car);
+			if (selected === null) select(car.id);
+			hud();
+		};
+
+		const leaveLot = (car: Car, cls: string, keep = false) => {
+			lot = lot.filter((c) => c !== car);
+			car.el.classList.remove('selected', 'urgent');
+			car.el.classList.add(cls);
+			if (!keep) setTimeout(() => car.el.remove(), 380);
+			else setTimeout(() => !lot.includes(car) && car.el.remove(), 380);
+			if (selected === car.id) select(null);
+			hud();
+		};
+
+		const loseLife = (why: string) => {
+			lives--;
+			combo = 1;
+			stats.missed++;
+			root.classList.remove('hurt');
+			void root.offsetWidth;
+			root.classList.add('hurt');
+			toast(why, 'bad');
+			hud();
+			if (lives <= 0) end(false);
+		};
+
+		const spawn = () => {
+			const h = hour();
+			if (lot.length >= CAPACITY) {
+				loseLife('Lot full, car turned away 🚧');
 				return;
 			}
-			const kind = ORDER[Math.floor(Math.random() * ORDER.length)];
-			const ttl = Math.max(4200, 10000 - elapsed * 0.09);
-			const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+			const r = Math.random();
+			const p3 = h >= 13 ? 0.08 : 0;
+			const p2 = h < 10 ? 0.15 : 0.3;
+			const n = r < p3 ? 3 : r < p3 + p2 ? 2 : r < p3 + p2 + 0.52 ? 1 : 0;
+			const jobs = (['wash', 'shop', 'charge'] as Job[]).sort(() => Math.random() - 0.5).slice(0, n);
+			const vip = h >= 10 && Math.random() < 0.1;
+			const max = ((h < 13 ? 14000 : 12500) + 3000 * n) * (vip ? 0.75 : 1);
 			const el = document.createElement('li');
-			el.className = 'car';
+			el.className = vip ? 'car vip' : 'car';
 			const id = nextId++;
-			const p = plate();
+			const car: Car = { id, jobs, total: n, vip, plate: plate(), patience: max, max, el };
 			el.innerHTML = `
-				<button type="button" class="car-btn" aria-label="${KINDS[kind].label} car ${p}">
-					<span class="car-body" style="--car:${color}">🚗</span>
-					<span class="car-info"><span class="plate mono">${p}</span><span class="cond">${KINDS[kind].badge} ${KINDS[kind].label}</span></span>
+				<button type="button" class="car-btn">
+					<span class="car-body" style="--car:${pick(COLORS)}">${vip ? '👑' : '🚗'}</span>
+					<span class="car-info"><span class="plate mono">${car.plate}</span><span class="jobs"></span></span>
 					<span class="timer"><span class="timer-fill"></span></span>
 				</button>`;
 			el.querySelector('button')!.addEventListener('click', () => select(id));
-			list.appendChild(el);
-			cars.push({ id, kind, plate: p, color, born: now, ttl, el });
-			if (selected === null) select(id);
+			toLot(car);
+		};
+
+		const renderBay = (bay: Bay) => {
+			const slots = bay.el.querySelectorAll<HTMLElement>('.slot');
+			slots.forEach((s, i) => {
+				const job = bay.slots[i];
+				s.classList.toggle('busy', !!job);
+				s.title = job ? job.car.plate : 'free';
+				s.querySelector<HTMLElement>('.slot-fill')!.style.transform = `scaleX(${job ? 1 - job.left / bay.time : 0})`;
+			});
+			bay.el.classList.toggle('full', bay.slots.length >= bay.size);
+		};
+
+		const mistake = (btn: HTMLElement | null, text: string) => {
+			score = Math.max(0, score - 5);
+			combo = 1;
+			stats.mistakes++;
+			flash(btn, 'flash-bad');
+			toast(text, 'bad');
 			hud();
 		};
 
 		const route = (kind: Kind) => {
 			if (!playing) return;
-			const car = cars.find((c) => c.id === selected) ?? cars[0];
+			const car = lot.find((c) => c.id === selected);
 			if (!car) return;
 			const btn = root.querySelector<HTMLElement>(`[data-route="${kind}"]`);
-			btn?.classList.remove('flash-good', 'flash-bad');
-			void btn?.offsetWidth;
-			if (car.kind === kind) {
-				const gained = 10 * combo;
+			if (kind === 'deliver') {
+				if (car.jobs.length) return mistake(btn, `Not ready: needs ${car.jobs.map((j) => JOBS[j].badge).join('')}`);
+				const gained = (10 + 10 * car.total) * combo * (car.vip ? 2 : 1);
 				score += gained;
+				stats.delivered++;
 				combo = Math.min(5, combo + 1);
-				btn?.classList.add('flash-good');
-				toast(`+${gained}`, 'good');
-				remove(car, 'out-good');
-			} else {
-				score = Math.max(0, score - 5);
-				combo = 1;
-				btn?.classList.add('flash-bad');
-				toast(`Wrong bay −5`, 'bad');
-				hud();
+				stats.bestCombo = Math.max(stats.bestCombo, combo);
+				flash(btn, 'flash-good');
+				toast(`+${gained}${car.vip ? ' 👑' : ''}`, 'good');
+				leaveLot(car, 'out-good');
+				return;
 			}
+			if (!car.jobs.includes(kind)) return mistake(btn, `Doesn't need the ${kind === 'shop' ? 'workshop' : kind === 'wash' ? 'wash' : 'charger'} −5`);
+			const bay = bays[kind];
+			if (bay.slots.length >= bay.size) {
+				flash(btn, 'flash-bad');
+				toast(`${JOBS[kind].badge} bay busy ⏳`, 'bad');
+				return;
+			}
+			bay.slots.push({ car, left: bay.time });
+			flash(btn, 'flash-good');
+			leaveLot(car, 'out-good', true);
+			renderBay(bay);
 		};
 
 		const tick = (now: number) => {
 			if (!playing) return;
-			const dt = lastTick ? now - lastTick : 0;
+			// Clamp so a backgrounded tab doesn't fast-forward the shift.
+			const dt = lastTick ? Math.min(100, now - lastTick) : 0;
 			lastTick = now;
 			if (visible) {
 				elapsed += dt;
+				const h = hour();
+				clockEl.textContent = fmtClock(Math.min(h, START_HOUR + HOURS));
+				shiftFill.style.transform = `scaleX(${Math.min(1, elapsed / SHIFT_MS)})`;
+				if (eventIdx < EVENTS.length && h >= EVENTS[eventIdx].at) showBanner(EVENTS[eventIdx++].text);
+				if (elapsed >= SHIFT_MS) return end(true);
+
 				spawnIn -= dt;
 				if (spawnIn <= 0) {
-					spawn(now);
-					spawnIn = Math.max(750, 2300 - elapsed * 0.02);
+					spawn();
+					if (!playing) return;
+					const base = h < 10 ? 2800 : h < 11 ? 2300 : h < 13 ? 1700 : h < 16 ? 2200 : 1600;
+					spawnIn = base * (0.8 + Math.random() * 0.4);
 				}
-				for (const car of [...cars]) {
-					const left = 1 - (now - car.born) / car.ttl;
-					const fill = car.el.querySelector<HTMLElement>('.timer-fill')!;
-					fill.style.transform = `scaleX(${Math.max(0, left)})`;
+
+				for (const bay of Object.values(bays)) {
+					for (const job of [...bay.slots]) {
+						job.left -= dt;
+						if (job.left <= 0) {
+							bay.slots = bay.slots.filter((j) => j !== job);
+							const car = job.car;
+							car.jobs = car.jobs.filter((j) => j !== bay.kind);
+							car.patience = Math.min(car.max, car.patience + 2500);
+							toLot(car);
+						}
+					}
+					renderBay(bay);
+				}
+
+				for (const car of [...lot]) {
+					car.patience -= dt;
+					const left = car.patience / car.max;
+					car.el.querySelector<HTMLElement>('.timer-fill')!.style.transform = `scaleX(${Math.max(0, left)})`;
 					car.el.classList.toggle('urgent', left < 0.3);
 					if (left <= 0) {
-						remove(car, 'out-bad');
-						loseLife(`${car.plate} waited too long ⏰`);
+						leaveLot(car, 'out-bad');
+						loseLife(`${car.plate} gave up waiting ⏰`);
 						if (!playing) return;
 					}
 				}
-			} else {
-				// Paused while scrolled away: push every deadline back.
-				cars.forEach((c) => (c.born += dt));
 			}
 			requestAnimationFrame(tick);
 		};
 
 		const start = () => {
-			cars.forEach((c) => c.el.remove());
-			cars = [];
+			lot.forEach((c) => c.el.remove());
+			list.innerHTML = '';
+			Object.values(bays).forEach((b) => {
+				b.slots = [];
+				renderBay(b);
+			});
+			lot = [];
 			selected = null;
 			score = 0;
 			combo = 1;
@@ -222,26 +383,46 @@ const routes = [
 			elapsed = 0;
 			lastTick = 0;
 			spawnIn = 300;
+			eventIdx = 0;
+			stats = { delivered: 0, missed: 0, mistakes: 0, bestCombo: 1 };
 			playing = true;
 			overlay.hidden = true;
+			banner.hidden = true;
+			clockEl.textContent = '08:00';
 			hud();
 			requestAnimationFrame(tick);
 		};
 
-		const end = () => {
+		const end = (survived: boolean) => {
 			playing = false;
+			const bonus = survived ? lives * 100 : 0;
+			score += bonus;
+			hud();
 			const isBest = score > best;
 			if (isBest) {
 				best = score;
 				try {
-					localStorage.setItem('dispatch-best', String(best));
+					localStorage.setItem('dispatch-best-v2', String(best));
 				} catch (e) {}
 				bestEl.textContent = String(best);
 			}
-			const verdict =
-				score >= 600 ? 'Ops wants to clone you. 🏆' : score >= 300 ? 'Solid shift. The lot thanks you. 🚗' : score >= 120 ? 'Not bad for a first day.' : 'Operations would like a word. 😬';
-			$('[data-overlay-title]').textContent = isBest && score > 0 ? `New best: ${score}!` : `Shift over: ${score}`;
-			$('[data-overlay-text]').textContent = verdict;
+			const stars = survived ? STARS.filter((s) => score >= s).length : 0;
+			const verdict = !survived
+				? `Sent home at ${fmtClock(hour())}. Operations would like a word. 😬`
+				: ['You made it. Barely. Tomorrow will be better.', 'Solid shift. The lot thanks you. 🚗', 'Smooth operator. Ops is impressed.', 'Ops wants to clone you. 🏆'][stars];
+			$('[data-overlay-title]').textContent = !survived ? 'Shift over' : isBest && score > 0 ? `New best: ${score}!` : 'Shift complete!';
+			$('[data-overlay-body]').innerHTML = `
+				${survived ? `<div class="stars" aria-label="${stars} of 3 stars">${'★'.repeat(stars)}<span>${'★'.repeat(3 - stars)}</span></div>` : ''}
+				<p class="verdict">${verdict}</p>
+				<dl class="end-stats">
+					<div><dt>Score</dt><dd>${score}</dd></div>
+					<div><dt>Delivered</dt><dd>${stats.delivered}</dd></div>
+					<div><dt>Lost</dt><dd>${stats.missed}</dd></div>
+					<div><dt>Best combo</dt><dd>×${stats.bestCombo}</dd></div>
+					${bonus ? `<div><dt>Hearts bonus</dt><dd>+${bonus}</dd></div>` : ''}
+					<div><dt>Mistakes</dt><dd>${stats.mistakes}</dd></div>
+				</dl>
+				${survived && stars < 3 ? `<p class="next">Next star at ${STARS[stars]}.</p>` : ''}`;
 			$('[data-start]').textContent = 'Another shift ↻';
 			overlay.hidden = false;
 		};
@@ -257,6 +438,9 @@ const routes = [
 			if (i >= 0) {
 				e.preventDefault();
 				route(ORDER[i]);
+			} else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+				e.preventDefault();
+				step(e.key === 'ArrowUp' ? -1 : 1);
 			}
 		});
 
@@ -290,6 +474,7 @@ const routes = [
 	.hud {
 		display: flex;
 		flex-wrap: wrap;
+		align-items: center;
 		gap: 10px 22px;
 		font: 500 14px/1 var(--font-mono);
 		padding-bottom: 14px;
@@ -299,6 +484,34 @@ const routes = [
 	.hud b {
 		font-weight: 700;
 		color: var(--accent);
+	}
+	.clock {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+	}
+	.clock b {
+		font-size: 18px;
+		color: var(--ink);
+		background: var(--yellow);
+		color: #151312;
+		border: 2px solid var(--ink);
+		border-radius: 8px;
+		padding: 4px 8px;
+	}
+	.shift-bar {
+		width: 90px;
+		height: 8px;
+		border: 2px solid var(--ink);
+		border-radius: 99px;
+		overflow: hidden;
+	}
+	.shift-bar span {
+		display: block;
+		height: 100%;
+		background: var(--blue);
+		transform: scaleX(0);
+		transform-origin: left;
 	}
 	.lives {
 		letter-spacing: 2px;
@@ -316,6 +529,10 @@ const routes = [
 		display: flex;
 		justify-content: space-between;
 		margin-bottom: 8px;
+	}
+	.lot-head :global(.full) {
+		color: var(--accent);
+		font-weight: 700;
 	}
 	.cars {
 		list-style: none;
@@ -345,6 +562,13 @@ const routes = [
 		padding: 8px 12px;
 		cursor: pointer;
 	}
+	.cars :global(.vip .car-btn) {
+		border-style: dashed;
+		border-color: #c99a00;
+	}
+	.cars :global(.ready .car-btn) {
+		background: color-mix(in srgb, var(--green) 18%, var(--paper));
+	}
 	.cars :global(.selected .car-btn) {
 		background: var(--yellow);
 		color: #151312;
@@ -354,7 +578,6 @@ const routes = [
 	.cars :global(.car-body) {
 		grid-row: span 2;
 		font-size: 26px;
-		filter: drop-shadow(0 0 0 var(--car));
 		display: grid;
 		place-items: center;
 		width: 40px;
@@ -366,6 +589,7 @@ const routes = [
 	.cars :global(.car-info) {
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
 		gap: 8px;
 		font-size: 14px;
 		font-weight: 600;
@@ -375,6 +599,17 @@ const routes = [
 		border: 1.5px solid currentColor;
 		border-radius: 4px;
 		padding: 1px 5px;
+	}
+	.cars :global(.jobs) {
+		display: flex;
+		gap: 4px;
+	}
+	.cars :global(.job) {
+		font-size: 17px;
+		line-height: 1;
+	}
+	.cars :global(.job.done) {
+		font-size: 14px;
 	}
 	.cars :global(.timer) {
 		height: 6px;
@@ -447,7 +682,13 @@ const routes = [
 		border-radius: 14px;
 		box-shadow: var(--shadow);
 		cursor: pointer;
-		transition: transform 0.1s, box-shadow 0.1s;
+		transition: transform 0.1s, box-shadow 0.1s, opacity 0.2s;
+	}
+	.route.deliver {
+		background: color-mix(in srgb, var(--green) 22%, var(--card));
+	}
+	.route:global(.full) {
+		opacity: 0.6;
 	}
 	.route:active {
 		transform: translate(3px, 3px);
@@ -472,6 +713,27 @@ const routes = [
 		font-size: 11px;
 		color: var(--muted);
 	}
+	.slots {
+		display: flex;
+		gap: 6px;
+		width: 100%;
+		justify-content: center;
+		margin-top: 4px;
+	}
+	.slot {
+		flex: 0 1 46px;
+		height: 8px;
+		border: 1.5px solid var(--ink);
+		border-radius: 99px;
+		overflow: hidden;
+	}
+	.slot-fill {
+		display: block;
+		height: 100%;
+		background: var(--blue);
+		transform: scaleX(0);
+		transform-origin: left;
+	}
 	.route:global(.flash-good) {
 		animation: flash-good 0.4s;
 	}
@@ -486,6 +748,40 @@ const routes = [
 	@keyframes flash-bad {
 		30% {
 			background: var(--accent);
+		}
+	}
+
+	.banner {
+		position: absolute;
+		left: 50%;
+		top: 70px;
+		transform: translateX(-50%);
+		font: 800 24px/1 var(--font-display);
+		background: var(--ink);
+		color: var(--paper);
+		padding: 10px 18px;
+		border-radius: 12px;
+		pointer-events: none;
+		white-space: nowrap;
+		z-index: 4;
+		opacity: 0;
+	}
+	.banner:global(.show) {
+		animation: banner 2.2s forwards;
+	}
+	@keyframes banner {
+		10%,
+		80% {
+			opacity: 1;
+			transform: translateX(-50%) rotate(-2deg) scale(1);
+		}
+		0% {
+			opacity: 0;
+			transform: translateX(-50%) scale(0.6);
+		}
+		100% {
+			opacity: 0;
+			transform: translateX(-50%) scale(1);
 		}
 	}
 
@@ -533,7 +829,7 @@ const routes = [
 		display: none;
 	}
 	.overlay-box {
-		max-width: 420px;
+		max-width: 460px;
 		text-align: center;
 		background: var(--card);
 		border: 2px solid var(--ink);
@@ -548,6 +844,43 @@ const routes = [
 	.overlay-box p {
 		color: var(--muted);
 		font-size: 15px;
+	}
+	.overlay-box :global(.stars) {
+		font-size: 40px;
+		line-height: 1;
+		color: #f0b400;
+		letter-spacing: 4px;
+		margin-bottom: 8px;
+	}
+	.overlay-box :global(.stars span) {
+		color: color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+	.overlay-box :global(.verdict) {
+		color: var(--ink);
+		font-weight: 600;
+	}
+	.overlay-box :global(.end-stats) {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 8px;
+		margin: 0 0 14px;
+	}
+	.overlay-box :global(.end-stats div) {
+		border: 2px solid var(--ink);
+		border-radius: 10px;
+		padding: 8px 4px;
+	}
+	.overlay-box :global(.end-stats dt) {
+		font: 500 11px/1.2 var(--font-mono);
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.overlay-box :global(.end-stats dd) {
+		margin: 4px 0 0;
+		font: 800 20px/1 var(--font-display);
+	}
+	.overlay-box :global(.next) {
+		font-size: 13px;
 	}
 
 	@media (max-width: 680px) {
@@ -565,6 +898,12 @@ const routes = [
 		}
 		.route-icon {
 			font-size: 26px;
+		}
+		.route-hint {
+			display: none;
+		}
+		.banner {
+			font-size: 18px;
 		}
 	}
 </style>

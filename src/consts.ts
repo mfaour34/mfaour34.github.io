@@ -1,6 +1,6 @@
 export const SITE_TITLE = 'Mohammed Faour';
 export const SITE_DESCRIPTION =
-	'Senior Software Engineer in Munich. Backend and serverless systems on AWS, logistics platforms, and building with AI agents.';
+	'Product engineer in Munich. I own logistics products end to end, from spec to production, with a backend core on AWS and AI agents in the loop.';
 
 export const EMAIL = 'faour606@gmail.com';
 export const LINKEDIN = 'https://www.linkedin.com/in/mohammed-faour';

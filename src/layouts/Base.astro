@@ -10,7 +10,7 @@ interface Props {
 }
 
 const { title, description = SITE_DESCRIPTION, type = 'website' } = Astro.props;
-const fullTitle = title ? `${title} · ${SITE_TITLE}` : `${SITE_TITLE} · Senior Software Engineer`;
+const fullTitle = title ? `${title} · ${SITE_TITLE}` : `${SITE_TITLE} · Product Engineer`;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL('/assets/avatar.png', Astro.site);
 const path = Astro.url.pathname;
@@ -59,7 +59,7 @@ const path = Astro.url.pathname;
 					<a href="/#work" class="hide-sm">Work</a>
 					<a href="/#play">Play</a>
 					<a href="/blog/" aria-current={path.startsWith('/blog') ? 'page' : undefined}>Blog</a>
-					<button class="icon-btn" type="button" data-open-terminal aria-label="Open terminal (press ` key)" title="Terminal ( ` )">
+					<button class="icon-btn" type="button" data-open-terminal aria-label="Open terminal (press / key)" aria-keyshortcuts="/" title="Terminal ( / )">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7 5 5-5 5M12 18h7"/></svg>
 					</button>
 					<button class="icon-btn" type="button" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
@@ -77,7 +77,7 @@ const path = Astro.url.pathname;
 			<div class="wrap footer-inner">
 				<div>
 					<strong class="footer-name">Mohammed Faour</strong>
-					<span class="muted">Backend engineer · Munich</span>
+					<span class="muted">Product engineer · Munich</span>
 				</div>
 				<div class="footer-links">
 					<a href={`mailto:${EMAIL}`}>Email</a>
@@ -86,7 +86,7 @@ const path = Astro.url.pathname;
 					<a href="/rss.xml">RSS</a>
 				</div>
 				<p class="footer-note muted">
-					© <span id="footer-year">{new Date().getFullYear()}</span> · Built with Astro, hosted on GitHub Pages · press <kbd>`</kbd> for a terminal
+					© <span id="footer-year">{new Date().getFullYear()}</span> · Built with Astro, hosted on GitHub Pages · press <kbd>/</kbd> for a terminal
 				</p>
 			</div>
 		</footer>

@@ -12,7 +12,7 @@ Every engineer's personal site eventually turns into a CV with a gradient. I wan
 - **The hype slider.** Drag it from *Modest* to *Conductor* and my bio rewrites itself as it goes. Notch two is the honest one.
 - **The swarm.** The little arrows in the hero are agents. Click empty space to file an incident and watch them close it. That's roughly how firefighting works for me now: agents do the digging, and I review the fix.
 - **Dispatch.** At FINN I built condition-based routing for returned cars. The game is the arcade version: wash, workshop, charging or straight back to a customer, before the lot overflows.
-- **The terminal.** Press the backtick key (<kbd>&#96;</kbd>) anywhere. Try `help`, then `sudo hire mohammed`.
+- **The terminal.** Press <kbd>/</kbd> anywhere. Try `help`, then `sudo hire mohammed`.
 
 ## What I'll write about
 

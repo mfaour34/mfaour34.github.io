@@ -79,7 +79,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 				help: 'who is this guy',
 				run: () =>
 					print(
-						`<b>Mohammed Faour</b>: Senior Software Engineer at FINN, Munich.<br>${years()} years building backend &amp; serverless systems on AWS. TypeScript, Node.js, Postgres, event-driven everything. I plan, orchestrate and review AI agents; they don't ship anything I haven't read.`,
+						`<b>Mohammed Faour</b>: Product engineer at FINN, Munich.<br>${years()} years building backend &amp; serverless systems on AWS. TypeScript, Node.js, Postgres, event-driven everything. I plan, orchestrate and review AI agents; they don't ship anything I haven't read.`,
 					),
 			},
 			experience: {
@@ -256,7 +256,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 		document.addEventListener('keydown', (e) => {
 			const t = e.target as HTMLElement;
 			if (e.key === 'Escape') return close();
-			if ((e.key === '`' || e.key === '~') && !t.closest('input, textarea, [contenteditable]')) {
+			if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !t.closest('input, textarea, [contenteditable]')) {
 				e.preventDefault();
 				open();
 			}
