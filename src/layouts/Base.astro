@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import Eggs from '../components/Eggs.astro';
 import Terminal from '../components/Terminal.astro';
 import { EMAIL, GITHUB, LINKEDIN, SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 
@@ -88,6 +89,7 @@ const path = Astro.url.pathname;
 				<p class="footer-note muted">
 					© <span id="footer-year">{new Date().getFullYear()}</span> · Built with Astro, hosted on GitHub Pages · press <kbd>/</kbd> for a terminal
 				</p>
+				<Eggs />
 			</div>
 		</footer>
 

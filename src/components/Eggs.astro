@@ -1,0 +1,230 @@
+---
+import { EMAIL } from '../consts';
+
+// Order matters only for the hint list.
+const eggs = [
+	{ id: 'konami', hint: 'Gamers from 1986 know the code. ↑ ↑ …' },
+	{ id: 'conductor', hint: 'Turn the hype all the way up.' },
+	{ id: 'secrets', hint: "Every repo has a file you shouldn't open. So does the terminal." },
+	{ id: 'hire', hint: 'The terminal respects sudo. Use it for a good cause.' },
+	{ id: 'stars', hint: 'Have a perfect day at work: three stars.' },
+];
+---
+
+<button class="egg-btn mono" type="button" popovertarget="egg-panel" data-egg-btn>
+	🥚 <span data-egg-count>0</span>/{eggs.length} secrets found
+</button>
+
+<div id="egg-panel" class="egg-panel card" popover data-egg-panel data-email={EMAIL}>
+	<h3>Secrets</h3>
+	<p class="muted">There are {eggs.length} hidden around this site. Here's a nudge for each one.</p>
+	<ol>
+		{
+			eggs.map((e) => (
+				<li data-egg={e.id}>
+					<span class="mark" aria-hidden="true" />
+					{e.hint}
+				</li>
+			))
+		}
+	</ol>
+	<p class="egg-done" data-egg-done hidden></p>
+</div>
+
+<div class="egg-toast" data-egg-toast hidden></div>
+
+<script>
+	const KEY = 'eggs';
+	const panel = document.querySelector<HTMLElement>('[data-egg-panel]')!;
+	const total = panel.querySelectorAll('[data-egg]').length;
+	const countEl = document.querySelector<HTMLElement>('[data-egg-count]')!;
+	const toastEl = document.querySelector<HTMLElement>('[data-egg-toast]')!;
+	const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	let found: string[] = [];
+	try {
+		found = JSON.parse(localStorage.getItem(KEY) || '[]');
+	} catch (e) {}
+
+	const render = () => {
+		countEl.textContent = String(found.length);
+		panel.querySelectorAll<HTMLElement>('[data-egg]').forEach((li) => li.classList.toggle('found', found.includes(li.dataset.egg!)));
+		const done = panel.querySelector<HTMLElement>('[data-egg-done]')!;
+		done.hidden = found.length < total;
+		if (!done.hidden) {
+			const mail = `mailto:${panel.dataset.email}?subject=${encodeURIComponent('I found all the eggs')}`;
+			done.innerHTML = `🏆 <b>All ${total} found.</b> You'd be great at debugging production. <a href="${mail}">Tell me how long it took.</a>`;
+		}
+	};
+
+	let toastTimer = 0;
+	const toast = (text: string) => {
+		toastEl.textContent = text;
+		toastEl.hidden = false;
+		toastEl.classList.remove('show');
+		void toastEl.offsetWidth;
+		toastEl.classList.add('show');
+		clearTimeout(toastTimer);
+		toastTimer = window.setTimeout(() => (toastEl.hidden = true), 3200);
+	};
+
+	const rain = (chars: string[], n = 40) => {
+		if (reduced) return;
+		const box = document.createElement('div');
+		box.className = 'egg-rain';
+		box.setAttribute('aria-hidden', 'true');
+		for (let i = 0; i < n; i++) {
+			const s = document.createElement('span');
+			s.textContent = chars[i % chars.length];
+			s.style.left = `${Math.random() * 100}vw`;
+			s.style.animationDelay = `${Math.random() * 0.9}s`;
+			s.style.fontSize = `${18 + Math.random() * 22}px`;
+			box.appendChild(s);
+		}
+		document.body.appendChild(box);
+		setTimeout(() => box.remove(), 3200);
+	};
+
+	const unlock = (id: string) => {
+		if (found.includes(id)) return;
+		found.push(id);
+		try {
+			localStorage.setItem(KEY, JSON.stringify(found));
+		} catch (e) {}
+		render();
+		if (found.length === total) {
+			toast(`🏆 All ${total} secrets found!`);
+			rain(['🥚', '🏆', '✨', '🚀'], 70);
+		} else toast(`🥚 Secret found! ${found.length}/${total}`);
+	};
+
+	window.addEventListener('egg', (e) => unlock((e as CustomEvent<string>).detail));
+	window.addEventListener('hype:level', (e) => {
+		const { level, max } = (e as CustomEvent<{ level: number; max: number }>).detail;
+		if (level === max) unlock('conductor');
+	});
+
+	// ↑ ↑ ↓ ↓ ← → ← → B A
+	const CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+	let pos = 0;
+	document.addEventListener('keydown', (e) => {
+		const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+		pos = key === CODE[pos] ? pos + 1 : key === CODE[0] ? 1 : 0;
+		if (pos === CODE.length) {
+			pos = 0;
+			rain(['🤖', '🤖', '🤖', '✨']);
+			unlock('konami');
+		}
+	});
+
+	console.log(
+		'%c👀 Looking for secrets?%c There are ' + total + ' on this site. This message isn\'t one of them. Try the 🥚 in the footer.',
+		'font: 700 14px system-ui; color: #ff4f1f',
+		'font: 13px system-ui',
+	);
+
+	render();
+</script>
+
+<style>
+	.egg-btn {
+		font-size: 12px;
+		color: var(--muted);
+		background: none;
+		border: 1.5px dashed var(--faint);
+		border-radius: 999px;
+		padding: 6px 12px;
+		cursor: pointer;
+	}
+	.egg-btn:hover {
+		color: var(--ink);
+		border-color: var(--ink);
+	}
+	.egg-panel {
+		width: min(420px, calc(100vw - 32px));
+		padding: 22px;
+		color: var(--ink);
+	}
+	.egg-panel::backdrop {
+		background: rgba(0, 0, 0, 0.35);
+	}
+	.egg-panel h3 {
+		font-size: 26px;
+		margin-bottom: 6px;
+	}
+	.egg-panel p {
+		font-size: 14px;
+	}
+	.egg-panel ol {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 8px;
+		display: grid;
+		gap: 10px;
+		font-size: 15px;
+	}
+	.egg-panel li {
+		display: flex;
+		gap: 10px;
+		align-items: baseline;
+	}
+	.mark::before {
+		content: '🥚';
+	}
+	.egg-panel li:global(.found) {
+		color: var(--muted);
+		text-decoration: line-through;
+	}
+	.egg-panel li:global(.found) .mark::before {
+		content: '🐣';
+	}
+	.egg-done {
+		margin: 12px 0 0;
+		padding: 10px 12px;
+		border: 2px solid var(--ink);
+		border-radius: 10px;
+		background: var(--yellow);
+		color: #151312;
+	}
+	.egg-toast {
+		position: fixed;
+		left: 50%;
+		bottom: 24px;
+		transform: translateX(-50%);
+		z-index: 120;
+		font: 800 18px/1 var(--font-display);
+		background: var(--yellow);
+		color: #151312;
+		border: 2px solid var(--ink);
+		border-radius: 12px;
+		box-shadow: var(--shadow);
+		padding: 12px 18px;
+		white-space: nowrap;
+	}
+	.egg-toast:global(.show) {
+		animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+	}
+	@keyframes pop {
+		from {
+			transform: translateX(-50%) scale(0.6);
+			opacity: 0;
+		}
+	}
+	:global(.egg-rain) {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 110;
+		overflow: hidden;
+	}
+	:global(.egg-rain span) {
+		position: absolute;
+		top: -60px;
+		animation: egg-fall 2.2s ease-in forwards;
+	}
+	@keyframes -global-egg-fall {
+		to {
+			transform: translateY(calc(100vh + 80px)) rotate(240deg);
+		}
+	}
+</style>

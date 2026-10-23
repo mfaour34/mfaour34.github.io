@@ -1,9 +1,9 @@
 ---
 const bays = [
-	{ key: 'wash', icon: '🧽', label: 'Car wash', hint: 'fast · 1 bay', slots: 1 },
-	{ key: 'shop', icon: '🔧', label: 'Workshop', hint: 'slow · 1 bay', slots: 1 },
-	{ key: 'charge', icon: '🔋', label: 'Charging', hint: 'medium · 2 bays', slots: 2 },
-	{ key: 'deliver', icon: '🚚', label: 'Deliver', hint: 'ready cars only', slots: 0 },
+	{ key: 'plan', icon: '📝', label: 'Plan', hint: 'write the PRD · 1 slot', slots: 1 },
+	{ key: 'build', icon: '🤖', label: 'Agents', hint: 'build in parallel · 3 slots', slots: 3 },
+	{ key: 'review', icon: '🔍', label: 'Review', hint: 'just you · 1 slot', slots: 1 },
+	{ key: 'deliver', icon: '🚀', label: 'Ship', hint: 'reviewed work only', slots: 0 },
 ];
 ---
 
@@ -21,7 +21,7 @@ const bays = [
 
 	<div class="board">
 		<div class="lot">
-			<div class="lot-head mono">Return lot <span data-lot-count>0/6</span></div>
+			<div class="lot-head mono">Ops backlog <span data-lot-count>0/6</span></div>
 			<ol class="cars" data-cars aria-live="polite"></ol>
 		</div>
 		<div class="routes" role="group" aria-label="Destinations">
@@ -51,24 +51,25 @@ const bays = [
 
 	<div class="overlay" data-overlay>
 		<div class="overlay-box">
-			<h3 data-overlay-title>Dispatch</h3>
+			<h3 data-overlay-title>Ship it</h3>
 			<div data-overlay-body>
 				<p>
-					You run the return lot for one shift, <b>08:00 to 18:00</b>. Each car shows the jobs it needs. Send it through every bay it
-					needs, in any order, then <b>deliver</b> it. Bays take time and have limited slots, so plan around the busy ones.
+					One day on the tech side of operations, <b>08:00 to 18:00</b>. Ops sends bugs 🐛, feature requests ✨, ideas 💡 and the
+					odd incident 🔥. Take each ticket through its steps in order (plan, let the agents build, review), then <b>ship</b> it. Agents
+					run in parallel. Review is just you.
 				</p>
 				<p>
-					Click a car, then a bay. Or use <kbd>↑</kbd><kbd>↓</kbd> and <kbd>1</kbd>–<kbd>4</kbd>. A car left waiting too long, or
-					a full lot, costs a ❤️. Survive the lunch and evening rush.
+					Click a ticket, then a step. Or use <kbd>↑</kbd><kbd>↓</kbd> and <kbd>1</kbd>–<kbd>4</kbd>. A ticket left waiting too
+					long gets escalated, and so does a full backlog. Each one costs a ❤️.
 				</p>
 			</div>
-			<button class="btn primary" type="button" data-start>Start shift ▶</button>
+			<button class="btn primary" type="button" data-start>Start the day ▶</button>
 		</div>
 	</div>
 </div>
 
 <script>
-	type Job = 'wash' | 'shop' | 'charge';
+	type Job = 'plan' | 'build' | 'review';
 	type Kind = Job | 'deliver';
 	type Car = {
 		id: number;
@@ -83,24 +84,30 @@ const bays = [
 	type Bay = { kind: Job; slots: { car: Car; left: number }[]; size: number; time: number; el: HTMLElement };
 
 	const JOBS: Record<Job, { badge: string; label: string }> = {
-		wash: { badge: '🧽', label: 'Dirty' },
-		shop: { badge: '🔧', label: 'Damaged' },
-		charge: { badge: '🔋', label: 'Low battery' },
+		plan: { badge: '📝', label: 'Plan' },
+		build: { badge: '🤖', label: 'Build' },
+		review: { badge: '🔍', label: 'Review' },
 	};
-	const ORDER: Kind[] = ['wash', 'shop', 'charge', 'deliver'];
+	const ORDER: Kind[] = ['plan', 'build', 'review', 'deliver'];
+	const TICKETS = {
+		bug: { icon: '🐛', jobs: ['build', 'review'] as Job[], titles: ['Driver app crash on handover', 'Relocation ETA off by a day', 'Duplicate pickup in schedule', 'Capacity view times out', 'Webhook retry loop', 'Wrong timezone on slots'] },
+		feature: { icon: '✨', jobs: ['plan', 'build', 'review'] as Job[], titles: ['Multi-stop routes', 'Bulk-reschedule moves', 'Driver shift swaps', 'Capacity forecast', 'Slack alerts for delays', 'Self-serve rebooking'] },
+		idea: { icon: '💡', jobs: ['plan'] as Job[], titles: ['PRD: auto-assign drivers', 'PRD: site transfer flow', 'PRD: damage photos', 'PRD: return windows'] },
+		incident: { icon: '🔥', jobs: ['build', 'review'] as Job[], titles: ['Prod: deliveries stuck', 'Prod: queue backed up', 'Prod: sync job failing'] },
+	};
 	const COLORS = ['#ff4f1f', '#3d5afe', '#19b46b', '#ffd43b', '#ff8fc8', '#151312', '#e8e2d6'];
 	const CAPACITY = 6;
 	const SHIFT_MS = 90_000;
 	const START_HOUR = 8;
 	const HOURS = 10;
-	const BAY_TIME: Record<Job, number> = { wash: 1500, shop: 3400, charge: 2800 };
+	const BAY_TIME: Record<Job, number> = { plan: 2600, build: 3200, review: 1200 };
 	const EVENTS = [
-		{ at: 11, text: '🍔 Lunch rush!' },
-		{ at: 13, text: 'Rush over. Breathe.' },
-		{ at: 16, text: '🌆 Evening rush!' },
-		{ at: 17.5, text: '⏰ 30 minutes to closing' },
+		{ at: 11, text: '📣 Midday escalations!' },
+		{ at: 13, text: 'Quiet again. Breathe.' },
+		{ at: 16, text: '🌆 End-of-day rush!' },
+		{ at: 17.5, text: '⏰ 30 minutes to code freeze' },
 	];
-	const STARS = [1200, 2200, 3200];
+	const STARS = [1500, 2800, 4000];
 
 	const root = document.querySelector<HTMLElement>('[data-dispatch]');
 	if (root) {
@@ -117,7 +124,7 @@ const bays = [
 		const lotCount = $('[data-lot-count]');
 
 		const bays = {} as Record<Job, Bay>;
-		(['wash', 'shop', 'charge'] as Job[]).forEach((k) => {
+		(['plan', 'build', 'review'] as Job[]).forEach((k) => {
 			const el = $(`[data-route="${k}"]`);
 			bays[k] = { kind: k, slots: [], size: el.querySelectorAll('.slot').length, time: BAY_TIME[k], el };
 		});
@@ -138,7 +145,7 @@ const bays = [
 		let stats = { delivered: 0, missed: 0, mistakes: 0, bestCombo: 1 };
 
 		try {
-			best = Number(localStorage.getItem('dispatch-best-v2') || 0);
+			best = Number(localStorage.getItem('shipit-best') || 0);
 		} catch (e) {}
 		bestEl.textContent = String(best);
 
@@ -148,10 +155,7 @@ const bays = [
 			return `${String(Math.floor(h)).padStart(2, '0')}:${String(m - (m % 5)).padStart(2, '0')}`;
 		};
 		const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-		const plate = () => {
-			const L = 'ABCDEFGHKLMNPRSTVWXYZ';
-			return `M-${pick([...L])}${pick([...L])} ${100 + Math.floor(Math.random() * 900)}E`;
-		};
+		const plate = () => `MOVE-${100 + Math.floor(Math.random() * 900)}`;
 
 		const hud = () => {
 			scoreEl.textContent = String(score);
@@ -186,7 +190,7 @@ const bays = [
 
 		const select = (id: number | null) => {
 			if (id === null || !lot.some((c) => c.id === id)) {
-				// Default to the car closest to running out of patience.
+				// Default to the ticket closest to being escalated.
 				const urgent = [...lot].sort((a, b) => a.patience / a.max - b.patience / b.max)[0];
 				id = urgent?.id ?? null;
 			}
@@ -203,11 +207,12 @@ const bays = [
 		const renderCar = (car: Car) => {
 			const ready = car.jobs.length === 0;
 			car.el.classList.toggle('ready', ready);
+			car.el.dataset.next = car.jobs[0] ?? 'deliver';
 			car.el.querySelector('.jobs')!.innerHTML = ready
-				? '<span class="job done">✨ Ready</span>'
-				: car.jobs.map((j) => `<span class="job" title="${JOBS[j].label}">${JOBS[j].badge}</span>`).join('');
-			const needs = ready ? 'ready to deliver' : car.jobs.map((j) => JOBS[j].label.toLowerCase()).join(', ');
-			car.el.querySelector('button')!.setAttribute('aria-label', `${car.vip ? 'VIP ' : ''}car ${car.plate}: ${needs}`);
+				? '<span class="job done">🚀 Ship it</span>'
+				: car.jobs.map((j, i) => `<span class="job${i ? '' : ' next'}" title="${JOBS[j].label}">${JOBS[j].badge}</span>`).join('');
+			const needs = ready ? 'ready to ship' : `next: ${car.jobs.map((j) => JOBS[j].label.toLowerCase()).join(', then ')}`;
+			car.el.querySelector('button')!.setAttribute('aria-label', `${car.vip ? 'Incident ' : 'Ticket '}${car.plate}: ${needs}`);
 		};
 
 		const toLot = (car: Car) => {
@@ -244,24 +249,26 @@ const bays = [
 		const spawn = () => {
 			const h = hour();
 			if (lot.length >= CAPACITY) {
-				loseLife('Lot full, car turned away 🚧');
+				loseLife('Backlog full, ops escalated 🚧');
 				return;
 			}
 			const r = Math.random();
-			const p3 = h >= 13 ? 0.08 : 0;
-			const p2 = h < 10 ? 0.15 : 0.3;
-			const n = r < p3 ? 3 : r < p3 + p2 ? 2 : r < p3 + p2 + 0.52 ? 1 : 0;
-			const jobs = (['wash', 'shop', 'charge'] as Job[]).sort(() => Math.random() - 0.5).slice(0, n);
-			const vip = h >= 10 && Math.random() < 0.1;
-			const max = ((h < 13 ? 14000 : 12500) + 3000 * n) * (vip ? 0.75 : 1);
+			const pFire = h >= 10 ? 0.1 : 0;
+			const pFeature = h < 10 ? 0.2 : 0.32;
+			const type = r < pFire ? 'incident' : r < pFire + pFeature ? 'feature' : r < pFire + pFeature + 0.2 ? 'idea' : 'bug';
+			const ticket = TICKETS[type];
+			const jobs = [...ticket.jobs];
+			const n = jobs.length;
+			const vip = type === 'incident';
+			const max = ((h < 13 ? 14000 : 12500) + 3000 * n) * (vip ? 0.6 : 1);
 			const el = document.createElement('li');
 			el.className = vip ? 'car vip' : 'car';
 			const id = nextId++;
 			const car: Car = { id, jobs, total: n, vip, plate: plate(), patience: max, max, el };
 			el.innerHTML = `
 				<button type="button" class="car-btn">
-					<span class="car-body" style="--car:${pick(COLORS)}">${vip ? '👑' : '🚗'}</span>
-					<span class="car-info"><span class="plate mono">${car.plate}</span><span class="jobs"></span></span>
+					<span class="car-body" style="--car:${pick(COLORS)}">${ticket.icon}</span>
+					<span class="car-info"><span class="tk"><span class="plate mono">${car.plate}</span><span class="ttl">${pick(ticket.titles)}</span></span><span class="jobs"></span></span>
 					<span class="timer"><span class="timer-fill"></span></span>
 				</button>`;
 			el.querySelector('button')!.addEventListener('click', () => select(id));
@@ -294,22 +301,24 @@ const bays = [
 			if (!car) return;
 			const btn = root.querySelector<HTMLElement>(`[data-route="${kind}"]`);
 			if (kind === 'deliver') {
-				if (car.jobs.length) return mistake(btn, `Not ready: needs ${car.jobs.map((j) => JOBS[j].badge).join('')}`);
+				if (car.jobs.length) return mistake(btn, `Not done: needs ${car.jobs.map((j) => JOBS[j].badge).join('')}`);
 				const gained = (10 + 10 * car.total) * combo * (car.vip ? 2 : 1);
 				score += gained;
 				stats.delivered++;
 				combo = Math.min(5, combo + 1);
 				stats.bestCombo = Math.max(stats.bestCombo, combo);
 				flash(btn, 'flash-good');
-				toast(`+${gained}${car.vip ? ' 👑' : ''}`, 'good');
+				toast(`+${gained}${car.vip ? ' 🔥' : ''}`, 'good');
 				leaveLot(car, 'out-good');
 				return;
 			}
-			if (!car.jobs.includes(kind)) return mistake(btn, `Doesn't need the ${kind === 'shop' ? 'workshop' : kind === 'wash' ? 'wash' : 'charger'} −5`);
+			if (car.jobs[0] !== kind) {
+				return mistake(btn, car.jobs.includes(kind) ? `${JOBS[car.jobs[0]].badge} ${JOBS[car.jobs[0]].label} it first −5` : `Doesn't need ${JOBS[kind].badge} −5`);
+			}
 			const bay = bays[kind];
 			if (bay.slots.length >= bay.size) {
 				flash(btn, 'flash-bad');
-				toast(`${JOBS[kind].badge} bay busy ⏳`, 'bad');
+				toast(kind === 'review' ? `Still reviewing ⏳` : `${JOBS[kind].badge} all slots busy ⏳`, 'bad');
 				return;
 			}
 			bay.slots.push({ car, left: bay.time });
@@ -335,7 +344,7 @@ const bays = [
 				if (spawnIn <= 0) {
 					spawn();
 					if (!playing) return;
-					const base = h < 10 ? 2800 : h < 11 ? 2300 : h < 13 ? 1700 : h < 16 ? 2200 : 1600;
+					const base = h < 10 ? 3300 : h < 11 ? 2800 : h < 13 ? 2100 : h < 16 ? 2600 : 2000;
 					spawnIn = base * (0.8 + Math.random() * 0.4);
 				}
 
@@ -360,7 +369,7 @@ const bays = [
 					car.el.classList.toggle('urgent', left < 0.3);
 					if (left <= 0) {
 						leaveLot(car, 'out-bad');
-						loseLife(`${car.plate} gave up waiting ⏰`);
+						loseLife(`${car.plate} got escalated ⏰`);
 						if (!playing) return;
 					}
 				}
@@ -402,22 +411,23 @@ const bays = [
 			if (isBest) {
 				best = score;
 				try {
-					localStorage.setItem('dispatch-best-v2', String(best));
+					localStorage.setItem('shipit-best', String(best));
 				} catch (e) {}
 				bestEl.textContent = String(best);
 			}
 			const stars = survived ? STARS.filter((s) => score >= s).length : 0;
+			if (stars === 3) window.dispatchEvent(new CustomEvent('egg', { detail: 'stars' }));
 			const verdict = !survived
-				? `Sent home at ${fmtClock(hour())}. Operations would like a word. 😬`
-				: ['You made it. Barely. Tomorrow will be better.', 'Solid shift. The lot thanks you. 🚗', 'Smooth operator. Ops is impressed.', 'Ops wants to clone you. 🏆'][stars];
+				? `Pulled into a meeting at ${fmtClock(hour())}. Too many escalations. 😬`
+				: ['You made it. Barely. Tomorrow will be better.', 'Solid day. Ops is happy. 🚀', 'Shipped it all. Ops is impressed.', 'Ops wants to clone you. 🏆'][stars];
 			$('[data-overlay-title]').textContent = !survived ? 'Shift over' : isBest && score > 0 ? `New best: ${score}!` : 'Shift complete!';
 			$('[data-overlay-body]').innerHTML = `
 				${survived ? `<div class="stars" aria-label="${stars} of 3 stars">${'★'.repeat(stars)}<span>${'★'.repeat(3 - stars)}</span></div>` : ''}
 				<p class="verdict">${verdict}</p>
 				<dl class="end-stats">
 					<div><dt>Score</dt><dd>${score}</dd></div>
-					<div><dt>Delivered</dt><dd>${stats.delivered}</dd></div>
-					<div><dt>Lost</dt><dd>${stats.missed}</dd></div>
+					<div><dt>Shipped</dt><dd>${stats.delivered}</dd></div>
+					<div><dt>Escalated</dt><dd>${stats.missed}</dd></div>
 					<div><dt>Best combo</dt><dd>×${stats.bestCombo}</dd></div>
 					${bonus ? `<div><dt>Hearts bonus</dt><dd>+${bonus}</dd></div>` : ''}
 					<div><dt>Mistakes</dt><dd>${stats.mistakes}</dd></div>
@@ -563,8 +573,8 @@ const bays = [
 		cursor: pointer;
 	}
 	.cars :global(.vip .car-btn) {
+		border-color: var(--accent);
 		border-style: dashed;
-		border-color: #c99a00;
 	}
 	.cars :global(.ready .car-btn) {
 		background: color-mix(in srgb, var(--green) 18%, var(--paper));
@@ -599,10 +609,26 @@ const bays = [
 		border: 1.5px solid currentColor;
 		border-radius: 4px;
 		padding: 1px 5px;
+		white-space: nowrap;
+	}
+	.cars :global(.tk) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-width: 0;
+	}
+	.cars :global(.ttl) {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.cars :global(.jobs) {
 		display: flex;
 		gap: 4px;
+		flex-shrink: 0;
+	}
+	.cars :global(.job:not(.next):not(.done)) {
+		opacity: 0.4;
 	}
 	.cars :global(.job) {
 		font-size: 17px;

@@ -127,7 +127,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 						`email     ${link('mailto:' + EMAIL, EMAIL)}<br>linkedin  ${link(LINKEDIN, 'in/mohammed-faour')}<br>github    ${link(GITHUB, 'mfaour34')}`,
 					),
 			},
-			play: { help: 'start the Dispatch game', run: () => (onHome() ? (close(), window.dispatchEvent(new Event('dispatch:start'))) : (location.href = '/#play')) },
+			play: { help: 'start the Ship it game', run: () => (onHome() ? (close(), window.dispatchEvent(new Event('dispatch:start'))) : (location.href = '/#play')) },
 			hype: {
 				help: 'hype 0–5: set the hype level',
 				run: ([n]) => {
@@ -170,7 +170,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 			cat: {
 				run: ([f]) => {
 					if (f === 'cv.txt') return commands.experience.run([]);
-					if (f === 'secrets.env') return print('AGENT_COUNT=∞<br>COFFEE_LEVEL=critical<br>FAVOURITE_BUG=it_was_dns', 'dim');
+					if (f === 'secrets.env') return window.dispatchEvent(new CustomEvent('egg', { detail: 'secrets' })), print('AGENT_COUNT=∞<br>COFFEE_LEVEL=critical<br>FAVOURITE_BUG=it_was_dns', 'dim');
 					print(`cat: ${esc(f ?? '')}: No such file`, 'err');
 				},
 			},
@@ -185,6 +185,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 			sudo: {
 				run: (args) => {
 					if (args.join(' ').toLowerCase().includes('hire')) {
+						window.dispatchEvent(new CustomEvent('egg', { detail: 'hire' }));
 						print(`[sudo] password for recruiter: ********<br><b class="ok">Access granted.</b> Great decision. → ${link('mailto:' + EMAIL + '?subject=Let%27s%20talk', 'send the offer')}`);
 						// Wiggle <main>, not <body>: a transformed body would re-anchor this fixed dialog.
 						document.querySelector('main')?.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(1deg)' }, { transform: 'rotate(-1deg)' }, { transform: 'rotate(0)' }], { duration: 400 });
