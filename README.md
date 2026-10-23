@@ -1,6 +1,6 @@
 # mfaour34.github.io
 
-Personal website of Mohammed Faour: **https://mfaour34.github.io**
+Personal website of Mohammed Faour: **https://mfaour.is-a.dev** (also reachable at mfaour34.github.io)
 
 Built with [Astro](https://astro.build) and deployed to GitHub Pages by GitHub Actions on every push to `main`.
 
