@@ -9,13 +9,14 @@ const eggs = [
 	{ id: 'hire', hint: 'Press / for the terminal and type sudo help.' },
 	{ id: 'stars', hint: 'Have a perfect day at work: three stars.' },
 ];
+const SONG = '04854XqcfCY'; // Queen, We Are The Champions
 ---
 
 <button class="egg-btn mono" type="button" popovertarget="egg-panel" data-egg-btn>
 	🥚 <span data-egg-count>0</span>/{eggs.length} secrets found
 </button>
 
-<div id="egg-panel" class="egg-panel card" popover data-egg-panel data-email={EMAIL}>
+<div id="egg-panel" class="egg-panel card" popover data-egg-panel>
 	<h3>Secrets</h3>
 	<p class="muted">There are {eggs.length} hidden around this site. Here's a nudge for each one.</p>
 	<ol>
@@ -28,10 +29,30 @@ const eggs = [
 			))
 		}
 	</ol>
-	<p class="egg-done" data-egg-done hidden></p>
+	<p class="egg-done" data-egg-done hidden>
+		🏆 <b>All {eggs.length} found.</b>
+		<button class="link-btn" type="button" data-champion-open>Play your victory song 🎵</button>
+	</p>
 </div>
 
+<dialog class="champion card" data-champion data-song={SONG}>
+	<div class="champion-head">
+		<span class="trophy" aria-hidden="true">🏆</span>
+		<div>
+			<h3>We are the champions.</h3>
+			<p class="muted">You found all {eggs.length} secrets. You'd be great at debugging production.</p>
+		</div>
+	</div>
+	<div class="video" data-video></div>
+	<div class="champion-actions">
+		<a class="btn primary" href={`mailto:${EMAIL}?subject=${encodeURIComponent('I found all the eggs')}`}>Tell me how long it took</a>
+		<a class="btn" href={`https://www.youtube.com/watch?v=${SONG}`} target="_blank" rel="noopener">Open on YouTube</a>
+		<button class="btn" type="button" data-champion-close>Close</button>
+	</div>
+</dialog>
+
 <div class="egg-toast" data-egg-toast hidden></div>
+<div class="egg-card" data-egg-card hidden></div>
 
 <script>
 	const KEY = 'eggs';
@@ -39,6 +60,9 @@ const eggs = [
 	const total = panel.querySelectorAll('[data-egg]').length;
 	const countEl = document.querySelector<HTMLElement>('[data-egg-count]')!;
 	const toastEl = document.querySelector<HTMLElement>('[data-egg-toast]')!;
+	const cardEl = document.querySelector<HTMLElement>('[data-egg-card]')!;
+	const champion = document.querySelector<HTMLDialogElement>('[data-champion]')!;
+	const video = champion.querySelector<HTMLElement>('[data-video]')!;
 	const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 	let found: string[] = [];
@@ -49,12 +73,7 @@ const eggs = [
 	const render = () => {
 		countEl.textContent = String(found.length);
 		panel.querySelectorAll<HTMLElement>('[data-egg]').forEach((li) => li.classList.toggle('found', found.includes(li.dataset.egg!)));
-		const done = panel.querySelector<HTMLElement>('[data-egg-done]')!;
-		done.hidden = found.length < total;
-		if (!done.hidden) {
-			const mail = `mailto:${panel.dataset.email}?subject=${encodeURIComponent('I found all the eggs')}`;
-			done.innerHTML = `🏆 <b>All ${total} found.</b> You'd be great at debugging production. <a href="${mail}">Tell me how long it took.</a>`;
-		}
+		panel.querySelector<HTMLElement>('[data-egg-done]')!.hidden = found.length < total;
 	};
 
 	let toastTimer = 0;
@@ -68,22 +87,106 @@ const eggs = [
 		toastTimer = window.setTimeout(() => (toastEl.hidden = true), 3200);
 	};
 
-	const rain = (chars: string[], n = 40) => {
-		if (reduced) return;
-		const box = document.createElement('div');
-		box.className = 'egg-rain';
-		box.setAttribute('aria-hidden', 'true');
-		for (let i = 0; i < n; i++) {
-			const s = document.createElement('span');
-			s.textContent = chars[i % chars.length];
-			s.style.left = `${Math.random() * 100}vw`;
-			s.style.animationDelay = `${Math.random() * 0.9}s`;
-			s.style.fontSize = `${18 + Math.random() * 22}px`;
-			box.appendChild(s);
-		}
-		document.body.appendChild(box);
-		setTimeout(() => box.remove(), 3200);
+	// A big centred card. It only fades, so it stays on with reduced motion.
+	let cardTimer = 0;
+	const showCard = (html: string, ms = 2600) => {
+		cardEl.innerHTML = html;
+		cardEl.hidden = false;
+		cardEl.classList.remove('show');
+		void cardEl.offsetWidth;
+		cardEl.classList.add('show');
+		clearTimeout(cardTimer);
+		cardTimer = window.setTimeout(() => (cardEl.hidden = true), ms);
 	};
+
+	type Piece = { x: number; y: number; vx: number; vy: number; r: number; vr: number; s: number; t: string; key: boolean; c: string };
+	const COLORS = ['#ff4f1f', '#ffd43b', '#3d5afe', '#19b46b', '#ff8fc8'];
+
+	// Physics burst on a full-screen canvas. Keycaps when key is true, emoji otherwise.
+	const burst = (items: string[], { n = 60, key = false } = {}) => {
+		if (reduced) return;
+		const canvas = document.createElement('canvas');
+		canvas.className = 'egg-canvas';
+		canvas.setAttribute('aria-hidden', 'true');
+		const dpr = Math.min(2, devicePixelRatio || 1);
+		canvas.width = innerWidth * dpr;
+		canvas.height = innerHeight * dpr;
+		document.body.appendChild(canvas);
+		const ctx = canvas.getContext('2d')!;
+		ctx.scale(dpr, dpr);
+		const pieces: Piece[] = Array.from({ length: n }, (_, i) => {
+			const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+			const v = 9 + Math.random() * 11;
+			return {
+				x: innerWidth / 2,
+				y: innerHeight * 0.62,
+				vx: Math.cos(a) * v,
+				vy: Math.sin(a) * v,
+				r: Math.random() * 6,
+				vr: (Math.random() - 0.5) * 0.3,
+				s: key ? 30 + Math.random() * 16 : 22 + Math.random() * 22,
+				t: items[i % items.length],
+				key,
+				c: COLORS[i % COLORS.length],
+			};
+		});
+		const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#151312';
+		const start = performance.now();
+		const frame = (now: number) => {
+			const t = now - start;
+			ctx.clearRect(0, 0, innerWidth, innerHeight);
+			ctx.globalAlpha = Math.max(0, Math.min(1, (3000 - t) / 600));
+			for (const p of pieces) {
+				p.vy += 0.38;
+				p.vx *= 0.99;
+				p.x += p.vx;
+				p.y += p.vy;
+				p.r += p.vr;
+				ctx.save();
+				ctx.translate(p.x, p.y);
+				ctx.rotate(p.r);
+				if (p.key) {
+					const h = p.s / 2;
+					ctx.fillStyle = ink;
+					ctx.beginPath();
+					ctx.roundRect(-h + 3, -h + 4, p.s, p.s, 7);
+					ctx.fill();
+					ctx.fillStyle = '#fffdf8';
+					ctx.strokeStyle = ink;
+					ctx.lineWidth = 2;
+					ctx.beginPath();
+					ctx.roundRect(-h, -h, p.s, p.s, 7);
+					ctx.fill();
+					ctx.stroke();
+					ctx.fillStyle = p.c === '#ffd43b' ? '#151312' : p.c;
+					ctx.font = `800 ${p.s * 0.5}px "JetBrains Mono", monospace`;
+					ctx.textAlign = 'center';
+					ctx.textBaseline = 'middle';
+					ctx.fillText(p.t, 0, 1);
+				} else {
+					ctx.font = `${p.s}px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+					ctx.textAlign = 'center';
+					ctx.textBaseline = 'middle';
+					ctx.fillText(p.t, 0, 0);
+				}
+				ctx.restore();
+			}
+			if (t < 3000) requestAnimationFrame(frame);
+			else canvas.remove();
+		};
+		requestAnimationFrame(frame);
+	};
+
+	const openChampion = () => {
+		// Built on open and torn down on close, so the song stops with the dialog.
+		video.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${champion.dataset.song}?autoplay=1&rel=0" title="Queen, We Are The Champions" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+		(document.getElementById('egg-panel') as HTMLElement & { hidePopover?: () => void }).hidePopover?.();
+		champion.showModal();
+	};
+	champion.addEventListener('close', () => (video.innerHTML = ''));
+	champion.querySelector('[data-champion-close]')!.addEventListener('click', () => champion.close());
+	champion.addEventListener('click', (e) => e.target === champion && champion.close());
+	panel.querySelector('[data-champion-open]')!.addEventListener('click', openChampion);
 
 	const unlock = (id: string) => {
 		if (found.includes(id)) return;
@@ -93,9 +196,12 @@ const eggs = [
 		} catch (e) {}
 		render();
 		if (found.length === total) {
-			toast(`🏆 All ${total} secrets found!`);
-			rain(['🥚', '🏆', '✨', '🚀'], 70);
-		} else toast(`🥚 Secret found! ${found.length}/${total}`);
+			burst(['🏆', '🥚', '🐣', '✨', '🎉'], { n: 110 });
+			setTimeout(openChampion, 900);
+		} else {
+			toast(`🥚 Secret found! ${found.length}/${total}`);
+			if (id !== 'riddle') burst(['🥚', '🐣', '✨'], { n: 36 });
+		}
 	};
 
 	window.addEventListener('egg', (e) => unlock((e as CustomEvent<string>).detail));
@@ -110,15 +216,19 @@ const eggs = [
 	document.addEventListener('keydown', (e) => {
 		if ((e.target as HTMLElement).closest('input, textarea, [contenteditable]') || e.key.length !== 1) return;
 		typed = (typed + e.key.toLowerCase()).slice(-12);
-		if (ANSWERS.some((a) => typed.endsWith(a))) {
-			typed = '';
-			rain(['⌨️', '🎹', '✨']);
-			unlock('riddle');
-		}
+		const answer = ANSWERS.find((a) => typed.endsWith(a));
+		if (!answer) return;
+		typed = '';
+		const letters = answer.toUpperCase().split('');
+		burst(answer === 'piano' ? ['🎹', '🎵', '🎶', ...letters] : letters, { n: 70, key: answer === 'keyboard' });
+		showCard(
+			`<div class="caps">${letters.map((l, i) => `<kbd style="--i:${i}">${l}</kbd>`).join('')}</div><p>Riddle solved. Keys, but no locks.</p>`,
+		);
+		unlock('riddle');
 	});
 
 	console.log(
-		'%c👀 Looking for secrets?%c There are ' + total + ' on this site. This message isn\'t one of them. Try the 🥚 in the footer.',
+		'%c👀 Looking for secrets?%c There are ' + total + " on this site. This message isn't one of them. Try the 🥚 in the footer.",
 		'font: 700 14px system-ui; color: #ff4f1f',
 		'font: 13px system-ui',
 	);
@@ -145,8 +255,9 @@ const eggs = [
 		padding: 22px;
 		color: var(--ink);
 	}
-	.egg-panel::backdrop {
-		background: rgba(0, 0, 0, 0.35);
+	.egg-panel::backdrop,
+	.champion::backdrop {
+		background: rgba(0, 0, 0, 0.45);
 	}
 	.egg-panel h3 {
 		font-size: 26px;
@@ -186,6 +297,63 @@ const eggs = [
 		background: var(--yellow);
 		color: #151312;
 	}
+	.link-btn {
+		font: inherit;
+		font-weight: 600;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: 0;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
+	.champion {
+		width: min(640px, calc(100vw - 32px));
+		padding: 22px;
+		color: var(--ink);
+	}
+	.champion[open] {
+		animation: pop-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+	}
+	.champion-head {
+		display: flex;
+		gap: 14px;
+		align-items: center;
+		margin-bottom: 14px;
+	}
+	.trophy {
+		font-size: 52px;
+		line-height: 1;
+	}
+	.champion h3 {
+		font-size: clamp(26px, 5vw, 36px);
+		margin-bottom: 4px;
+	}
+	.champion p {
+		margin: 0;
+		font-size: 15px;
+	}
+	.video {
+		aspect-ratio: 16 / 9;
+		border: 2px solid var(--ink);
+		border-radius: 12px;
+		overflow: hidden;
+		background: #000;
+	}
+	.video :global(iframe) {
+		width: 100%;
+		height: 100%;
+		border: 0;
+		display: block;
+	}
+	.champion-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		margin-top: 16px;
+	}
+
 	.egg-toast {
 		position: fixed;
 		left: 50%;
@@ -202,29 +370,100 @@ const eggs = [
 		white-space: nowrap;
 	}
 	.egg-toast:global(.show) {
-		animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+		animation: toast-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
 	}
-	@keyframes pop {
+
+	.egg-card {
+		position: fixed;
+		left: 50%;
+		top: 40%;
+		transform: translate(-50%, -50%);
+		z-index: 115;
+		text-align: center;
+		background: var(--card);
+		color: var(--ink);
+		border: 2px solid var(--ink);
+		border-radius: 18px;
+		box-shadow: var(--shadow-lg);
+		padding: 22px 26px 16px;
+		pointer-events: none;
+		max-width: calc(100vw - 32px);
+	}
+	.egg-card:global(.show) {
+		animation: card 2.6s forwards;
+	}
+	.egg-card :global(.caps) {
+		display: flex;
+		justify-content: center;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+	.egg-card :global(kbd) {
+		font: 800 clamp(20px, 5vw, 34px) / 1 var(--font-mono);
+		width: 1.6em;
+		height: 1.6em;
+		display: grid;
+		place-items: center;
+		background: var(--paper);
+		border: 2px solid var(--ink);
+		border-radius: 10px;
+		box-shadow: 0 4px 0 var(--ink);
+		animation: key-press 0.5s calc(var(--i) * 0.07s) both;
+	}
+	.egg-card :global(p) {
+		margin: 14px 0 0;
+		font: 700 16px/1.3 var(--font-display);
+	}
+
+	@keyframes toast-in {
 		from {
 			transform: translateX(-50%) scale(0.6);
 			opacity: 0;
 		}
 	}
-	:global(.egg-rain) {
+	@keyframes pop-in {
+		from {
+			transform: scale(0.85);
+			opacity: 0;
+		}
+	}
+	@keyframes card {
+		0% {
+			opacity: 0;
+		}
+		10%,
+		85% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+	@keyframes key-press {
+		0% {
+			transform: translateY(-14px);
+			opacity: 0;
+		}
+		60% {
+			transform: translateY(3px);
+			box-shadow: 0 1px 0 var(--ink);
+			opacity: 1;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.egg-card:global(.show) {
+			animation-duration: 2.6s !important;
+		}
+	}
+</style>
+
+<style is:global>
+	.egg-canvas {
 		position: fixed;
 		inset: 0;
+		width: 100vw;
+		height: 100vh;
 		pointer-events: none;
 		z-index: 110;
-		overflow: hidden;
-	}
-	:global(.egg-rain span) {
-		position: absolute;
-		top: -60px;
-		animation: egg-fall 2.2s ease-in forwards;
-	}
-	@keyframes -global-egg-fall {
-		to {
-			transform: translateY(calc(100vh + 80px)) rotate(240deg);
-		}
 	}
 </style>
