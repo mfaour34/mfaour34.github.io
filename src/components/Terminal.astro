@@ -64,6 +64,110 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 			else location.href = `/#${id}`;
 		};
 
+		// One animation at a time. Any key, a new command or closing the terminal stops it.
+		let stopAnim: (() => void) | null = null;
+		const stop = () => {
+			stopAnim?.();
+			stopAnim = null;
+		};
+		const block = (cls: string) => {
+			const pre = document.createElement('pre');
+			pre.className = `line ${cls}`;
+			out.appendChild(pre);
+			return pre;
+		};
+		const charsWide = (px: number) => Math.floor(out.clientWidth / (px * 0.6)) - 4;
+
+		// Each pose is 5 rows of 9 characters.
+		const CAT = [
+			['  /\\_/\\  ', ' ( o.o ) ', ' /|   |\\ ', '  |___|  ', '  /   \\  '],
+			['\\ /\\_/\\  ', ' ( ^.^ ) ', '  |   |\\ ', '  |___|  ', '  |   \\  '],
+			['  /\\_/\\ /', ' ( ^o^ ) ', ' /|   |  ', '  |___|  ', '  /   |  '],
+			['\\ /\\_/\\ /', ' ( >w< ) ', '  |   |  ', '  |___|  ', '  /   \\  '],
+		];
+		const CAT_COLORS = ['#ffd43b', '#ff8fc8', '#38d48a', '#8fa0ff', '#ff7a59', '#f1ebdf'];
+		const dance = () => {
+			const n = Math.max(2, Math.min(6, Math.floor(charsWide(14) / 11)));
+			const pre = block('art dance');
+			let t = 0;
+			const draw = () => {
+				const rows = Array.from({ length: 7 }, () => [] as string[]);
+				for (let i = 0; i < n; i++) {
+					const f = (t + i * 2) % CAT.length;
+					const hop = (t + i) % 2;
+					const color = CAT_COLORS[i % CAT_COLORS.length];
+					for (let r = 0; r < 6; r++) {
+						const line = CAT[f][r - 1 + hop] ?? ' '.repeat(9);
+						rows[r].push(`<span style="color:${color}">${esc(line)}</span>`);
+					}
+					rows[6].push(`<span class="dim">${t % 2 === i % 2 ? ' ♪    ♫  ' : '  ♫    ♪ '}</span>`);
+				}
+				pre.innerHTML = rows.map((r) => r.join('  ')).join('\n') + '\n' + '<span class="dim">' + '‾'.repeat(n * 11 - 2) + '</span>';
+				out.scrollTop = out.scrollHeight;
+				t++;
+			};
+			draw();
+			const id = setInterval(draw, 220);
+			stopAnim = () => clearInterval(id);
+			print('(press any key to stop the party)', 'dim');
+		};
+
+		const RAMP = '.,:;i1tfLCG08@';
+		const portrait = () => {
+			const img = new Image();
+			img.onerror = () => print('portrait: the camera is shy right now. Try again later.', 'err');
+			img.onload = () => {
+				// Crop to the face: the right side of the photo is mostly street.
+				const [sx, sy, sw, sh] = [0, 0, img.width * 0.72, img.height * 0.8];
+				const cols = 100;
+				const rows = Math.round(cols * 0.6 * (sh / sw));
+				const px = Math.min(6.5, (out.clientWidth - 24) / (cols * 0.6));
+				const c = document.createElement('canvas');
+				c.width = cols;
+				c.height = rows;
+				const ctx = c.getContext('2d', { willReadFrequently: true })!;
+				ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
+				const data = ctx.getImageData(0, 0, cols, rows).data;
+				const lum = (i: number) => (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+				// Stretch contrast between the 3rd and 97th percentile so the face doesn't wash out.
+				const all = Array.from({ length: cols * rows }, (_, k) => lum(k * 4)).sort((x, y) => x - y);
+				const lo = all[Math.floor(all.length * 0.03)];
+				const hi = all[Math.floor(all.length * 0.97)];
+				const lines: string[] = [];
+				for (let y = 0; y < rows; y++) {
+					let html = '';
+					for (let x = 0; x < cols; x++) {
+						const i = (y * cols + x) * 4;
+						const l = Math.min(1, Math.max(0, (lum(i) - lo) / (hi - lo)));
+						const ch = RAMP[Math.min(RAMP.length - 1, Math.floor(l * RAMP.length))];
+						// Colour from the photo, brightened so it reads on the black terminal.
+						const peak = Math.max(data[i], data[i + 1], data[i + 2], 1);
+						const gain = (90 + 165 * l) / peak;
+						const rgb = [0, 1, 2].map((k) => Math.min(255, Math.round(data[i + k] * gain))).join(',');
+						html += `<span style="color:rgb(${rgb})">${esc(ch)}</span>`;
+					}
+					lines.push(html);
+				}
+				const pre = block('portrait');
+				pre.style.fontSize = `${px}px`;
+				let y = 0;
+				const id = setInterval(() => {
+					pre.innerHTML += (y ? '\n' : '') + lines[y++];
+					out.scrollTop = out.scrollHeight;
+					if (y >= lines.length) {
+						clearInterval(id);
+						stopAnim = null;
+						print("That's me. Better in person, slightly worse before coffee.", 'dim');
+					}
+				}, 18);
+				stopAnim = () => {
+					clearInterval(id);
+					pre.innerHTML = lines.join('\n');
+				};
+			};
+			img.src = '/assets/avatar.png';
+		};
+
 		const commands: Record<string, { help?: string; run: (args: string[]) => void }> = {
 			help: {
 				help: 'list commands',
@@ -203,11 +307,14 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 			echo: { run: (args) => print(esc(args.join(' '))) },
 			date: { run: () => print(new Date().toString()) },
 			history: { run: () => print(history.map((h, i) => `${String(i + 1).padStart(3)}  ${esc(h)}`).join('<br>') || 'empty') },
+			dance: { help: 'make the cats dance', run: () => dance() },
+			portrait: { help: 'my picture, in characters', run: () => portrait() },
 			clear: { help: 'clear the screen', run: () => (out.innerHTML = '') },
 			exit: { help: 'close the terminal', run: () => close() },
 		};
 
 		const runLine = (raw: string) => {
+			stop();
 			const line = raw.trim();
 			print(`<span class="prompt">➜ ~</span> ${esc(line)}`, 'cmd');
 			if (!line) return;
@@ -233,6 +340,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 		};
 		const close = () => {
 			if (backdrop.hidden) return;
+			stop();
 			backdrop.hidden = true;
 			document.body.style.overflow = '';
 			lastFocus?.focus();
@@ -244,6 +352,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 			input.value = '';
 		});
 		input.addEventListener('keydown', (e) => {
+			if (stopAnim && e.key !== 'Enter') stop();
 			if (e.key === 'ArrowUp' && hIndex > 0) {
 				input.value = history[--hIndex];
 				e.preventDefault();
@@ -382,6 +491,18 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 	.term-out :global(.art) {
 		margin: 0;
 		color: #ffd43b;
+	}
+	.term-out :global(.dance) {
+		font: inherit;
+		line-height: 1.25;
+		white-space: pre;
+	}
+	.term-out :global(.portrait) {
+		margin: 4px 0;
+		line-height: 1;
+		white-space: pre;
+		font-family: var(--font-mono);
+		letter-spacing: 0;
 	}
 	.prompt,
 	.term-out :global(.prompt) {
