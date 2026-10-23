@@ -3,7 +3,7 @@ import { EMAIL } from '../consts';
 
 // Order matters only for the hint list.
 const eggs = [
-	{ id: 'konami', hint: 'Gamers from 1986 know the code. ↑ ↑ …' },
+	{ id: 'riddle', hint: "What has keys but can't open locks? Type the answer anywhere on the page." },
 	{ id: 'conductor', hint: 'Turn the hype all the way up.' },
 	{ id: 'secrets', hint: "Every repo has a file you shouldn't open. So does the terminal." },
 	{ id: 'hire', hint: 'The terminal respects sudo. Use it for a good cause.' },
@@ -104,16 +104,16 @@ const eggs = [
 		if (level === max) unlock('conductor');
 	});
 
-	// ↑ ↑ ↓ ↓ ← → ← → B A
-	const CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-	let pos = 0;
+	// The riddle: typing its answer anywhere outside a text field unlocks it.
+	const ANSWERS = ['keyboard', 'piano'];
+	let typed = '';
 	document.addEventListener('keydown', (e) => {
-		const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-		pos = key === CODE[pos] ? pos + 1 : key === CODE[0] ? 1 : 0;
-		if (pos === CODE.length) {
-			pos = 0;
-			rain(['🤖', '🤖', '🤖', '✨']);
-			unlock('konami');
+		if ((e.target as HTMLElement).closest('input, textarea, [contenteditable]') || e.key.length !== 1) return;
+		typed = (typed + e.key.toLowerCase()).slice(-12);
+		if (ANSWERS.some((a) => typed.endsWith(a))) {
+			typed = '';
+			rain(['⌨️', '🎹', '✨']);
+			unlock('riddle');
 		}
 	});
 
