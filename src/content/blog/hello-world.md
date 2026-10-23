@@ -11,7 +11,7 @@ Every engineer's personal site eventually turns into a CV with a gradient. I wan
 
 - **The hype slider.** Drag it from *Modest* to *Conductor* and my bio rewrites itself as it goes. Notch two is the honest one.
 - **The swarm.** The little arrows in the hero are agents. Click empty space to file an incident and watch them close it. That's roughly how firefighting works for me now: agents do the digging, and I review the fix.
-- **Ship it.** My day on the tech side of operations as a 90-second game. Bugs, features and incidents come in. You plan, let the agents build, review everything and ship, before ops starts escalating.
+- **Ship it.** My day on the tech side of operations as a 15-second game. Bugs, features and incidents come in. You plan, let the agents build, review everything and ship, before ops starts escalating.
 - **The terminal.** Press <kbd>/</kbd> anywhere. Try `help`, then `sudo hire mohammed`.
 
 ## What I'll write about

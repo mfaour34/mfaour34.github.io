@@ -54,7 +54,7 @@ const bays = [
 			<h3 data-overlay-title>Ship it</h3>
 			<div data-overlay-body>
 				<p>
-					One day on the tech side of operations, <b>08:00 to 18:00</b>. Ops sends bugs 🐛, feature requests ✨, ideas 💡 and the
+					One day on the tech side of operations, squeezed into <b>15 seconds</b>. Ops sends bugs 🐛, feature requests ✨, ideas 💡 and the
 					odd incident 🔥. Take each ticket through its steps in order (plan, let the agents build, review), then <b>ship</b> it. Agents
 					run in parallel. Review is just you.
 				</p>
@@ -97,17 +97,14 @@ const bays = [
 	};
 	const COLORS = ['#ff4f1f', '#3d5afe', '#19b46b', '#ffd43b', '#ff8fc8', '#151312', '#e8e2d6'];
 	const CAPACITY = 6;
-	const SHIFT_MS = 90_000;
+	const SHIFT_MS = 15_000;
 	const START_HOUR = 8;
 	const HOURS = 10;
-	const BAY_TIME: Record<Job, number> = { plan: 2600, build: 3200, review: 1200 };
+	const BAY_TIME: Record<Job, number> = { plan: 900, build: 1200, review: 500 };
 	const EVENTS = [
-		{ at: 11, text: '📣 Midday escalations!' },
-		{ at: 13, text: 'Quiet again. Breathe.' },
-		{ at: 16, text: '🌆 End-of-day rush!' },
-		{ at: 17.5, text: '⏰ 30 minutes to code freeze' },
+		{ at: 15, text: '⏰ Code freeze soon!' },
 	];
-	const STARS = [1500, 2800, 4000];
+	const STARS = [100, 250, 450];
 
 	const root = document.querySelector<HTMLElement>('[data-dispatch]');
 	if (root) {
@@ -260,7 +257,7 @@ const bays = [
 			const jobs = [...ticket.jobs];
 			const n = jobs.length;
 			const vip = type === 'incident';
-			const max = ((h < 13 ? 14000 : 12500) + 3000 * n) * (vip ? 0.6 : 1);
+			const max = (9000 + 1500 * n) * (vip ? 0.7 : 1);
 			const el = document.createElement('li');
 			el.className = vip ? 'car vip' : 'car';
 			const id = nextId++;
@@ -344,7 +341,7 @@ const bays = [
 				if (spawnIn <= 0) {
 					spawn();
 					if (!playing) return;
-					const base = h < 10 ? 3300 : h < 11 ? 2800 : h < 13 ? 2100 : h < 16 ? 2600 : 2000;
+					const base = 2400;
 					spawnIn = base * (0.8 + Math.random() * 0.4);
 				}
 
@@ -404,7 +401,7 @@ const bays = [
 
 		const end = (survived: boolean) => {
 			playing = false;
-			const bonus = survived ? lives * 100 : 0;
+			const bonus = survived ? lives * 25 : 0;
 			score += bonus;
 			hud();
 			const isBest = score > best;
