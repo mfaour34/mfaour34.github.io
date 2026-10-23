@@ -183,8 +183,12 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
 				},
 			},
 			sudo: {
+				help: 'superuser powers. try sudo help',
 				run: (args) => {
-					if (args.join(' ').toLowerCase().includes('hire')) {
+					const sub = args.join(' ').toLowerCase();
+					if (!sub || sub === 'help') {
+						print('usage: <span class="k">sudo hire mohammed</span><br>The only command you need superuser powers for.', 'dim');
+					} else if (sub.includes('hire')) {
 						window.dispatchEvent(new CustomEvent('egg', { detail: 'hire' }));
 						print(`[sudo] password for recruiter: ********<br><b class="ok">Access granted.</b> Great decision. → ${link('mailto:' + EMAIL + '?subject=Let%27s%20talk', 'send the offer')}`);
 						// Wiggle <main>, not <body>: a transformed body would re-anchor this fixed dialog.
